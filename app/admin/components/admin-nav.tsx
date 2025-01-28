@@ -4,10 +4,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
-const navItems = [
+const links = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/brands", label: "Brands" },
   { href: "/admin/creators", label: "Creators" },
+  { href: "/admin/brands", label: "Brands" },
   { href: "/admin/campaigns", label: "Campaigns" },
 ]
 
@@ -15,19 +15,19 @@ export function AdminNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="space-y-1">
-      {navItems.map((item) => (
+    <nav className="flex space-x-4 mb-6">
+      {links.map((link) => (
         <Link
-          key={item.href}
-          href={item.href}
+          key={link.href}
+          href={link.href}
           className={cn(
-            "flex items-center px-4 py-2 text-sm font-medium rounded-md",
-            pathname === item.href
-              ? "bg-[#4752C4] text-white"
-              : "text-zinc-300 hover:bg-[#2B2D31]"
+            "px-3 py-2 text-sm rounded-md transition-colors",
+            pathname === link.href
+              ? "bg-[#5865F2] text-white"
+              : "text-zinc-400 hover:text-white"
           )}
         >
-          {item.label}
+          {link.label}
         </Link>
       ))}
     </nav>

@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
 import { DashboardClient } from "./client"
@@ -8,46 +7,110 @@ import { DashboardHeader } from "./header"
 
 export const dynamic = "force-dynamic"
 
+export interface Campaign {
+  id: string
+  created_at: string
+  updated_at: string
+  brand_id: string
+  title: string
+  budget_pool: string
+  rpm: string
+  guidelines: string
+  status: string
+  video_outline: string | null
+  brands?: {
+    name: string
+    logo_url: string | null
+  }
+  submissions?: Array<{
+    id: string
+    status: string
+    video_url: string
+    created_at: string
+  }>
+}
+
 export default async function Dashboard() {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   const supabase = createServerComponentClient({
     cookies: () => cookieStore,
   })
 
   const {
     data: { session },
+    error: sessionError,
   } = await supabase.auth.getSession()
 
-  if (!session?.user) {
+  if (sessionError || !session) {
+    console.error("Session error:", sessionError)
     redirect("/signin")
   }
 
   const userType = session.user.user_metadata.user_type
 
+  // Check if brand user has completed onboarding
+  if (userType === "brand") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", session.user.id)
+      .single()
+
+    if (!profile?.onboarding_completed) {
+      redirect("/onboarding/brand")
+    }
+  }
+
   if (userType === "creator") {
     // Get all available campaigns with brand data and existing submissions
-    const { data: campaigns } = await supabase
+    const { data: campaigns, error: campaignsError } = await supabase
       .from("campaigns")
-      .select(`*`)
+      .select(
+        `
+        *,
+        brand:brands (
+          id,
+          user_id,
+          profiles (
+            organization_name
+          )
+        ),
+        submissions (
+          id,
+          status,
+          video_url,
+          created_at,
+          creator_id
+        )
+      `
+      )
+      .eq("status", "active")
       .order("created_at", { ascending: false })
+
+    if (campaignsError) {
+      console.error("Error fetching campaigns:", campaignsError)
+      return <div>Error loading campaigns</div>
+    }
 
     // Transform the data to match the expected format
     const transformedCampaigns =
       campaigns?.map((campaign) => ({
         ...campaign,
-        brand: campaign.brands,
-        submission: campaign.submissions?.[0] || null,
+        brand: {
+          name: campaign.brand?.profiles?.organization_name || "Unnamed Brand",
+          logo_url: null, // We don't have logo URLs in the current schema
+        },
+        submission:
+          campaign.submissions?.find(
+            (sub: { creator_id: string }) => sub.creator_id === session.user.id
+          ) || null,
       })) || []
-
-    console.log(campaigns)
 
     return (
       <div className="min-h-screen bg-[#313338]">
         <div className="border-b border-zinc-800 bg-[#2B2D31]">
           <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-bold text-white">
-              {userType === "brand" ? "Brand Platform" : "Creator Platform"}
-            </h1>
+            <h1 className="text-xl font-bold text-white">Creator Platform</h1>
             <DashboardHeader userType={userType} />
           </div>
         </div>
@@ -80,7 +143,11 @@ export default async function Dashboard() {
         creator_id,
         status,
         created_at,
-        views
+        views,
+        profiles (
+          full_name,
+          email
+        )
       )
     `
     )
@@ -92,24 +159,16 @@ export default async function Dashboard() {
     campaigns?.map((campaign) => ({
       ...campaign,
       activeSubmissionsCount:
-        campaign.submissions?.filter((sub) => sub.status === "active").length ||
-        0,
+        campaign.submissions?.filter(
+          (sub: { status: string }) => sub.status === "active"
+        ).length || 0,
     })) || []
-
-  console.log("brandData", brandData)
-
-  console.log(
-    "campaigns",
-    campaigns?.map((campaign) => campaign.submissions)
-  )
 
   return (
     <div className="min-h-screen bg-[#313338]">
       <div className="border-b border-zinc-800 bg-[#2B2D31]">
         <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-white">
-            {userType === "brand" ? "Brand Platform" : "Creator Platform"}
-          </h1>
+          <h1 className="text-xl font-bold text-white">Brand Platform</h1>
           <DashboardHeader userType={userType} />
         </div>
       </div>

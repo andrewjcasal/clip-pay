@@ -5,14 +5,13 @@ export default async function BrandsPage() {
   const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
-  const { data: brands, error } = await supabase
+  const { data: brands } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, brands (*)")
     .eq("user_type", "brand")
     .order("created_at", { ascending: false })
 
   console.log("Brands data:", brands)
-  console.log("Query error:", error)
 
   if (!brands || brands.length === 0) {
     return (
@@ -30,7 +29,7 @@ export default async function BrandsPage() {
       <h1 className="text-2xl font-bold text-white">Brands</h1>
       <div className="bg-[#2B2D31] rounded-lg p-6">
         <div className="space-y-4">
-          {brands?.map((brand) => (
+          {brands.map((brand) => (
             <div
               key={brand.id}
               className="flex items-center justify-between p-4 bg-[#1E1F22] rounded-md text-white"

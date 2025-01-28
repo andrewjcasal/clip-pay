@@ -21,9 +21,9 @@ const brandLinks: NavLink[] = [
 
 const creatorLinks: NavLink[] = [
   { href: "/dashboard", label: "Campaigns" },
-  { href: "/dashboard/submissions", label: "Submissions" },
-  { href: "/dashboard/earnings", label: "Earnings" },
-  { href: "/dashboard/refer", label: "Refer" },
+  { href: "/submissions", label: "Submissions" },
+  { href: "/earnings", label: "Earnings" },
+  { href: "/refer", label: "Refer" },
 ]
 
 export function DashboardHeader({ userType }: { userType: string }) {

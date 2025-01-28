@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { AuthError } from "@supabase/supabase-js"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
@@ -14,29 +16,48 @@ import {
 } from "../../components/ui/card"
 import Link from "next/link"
 
-export function SignInForm() {
-  const router = useRouter()
+const supabase = createClientComponentClient()
+
+export default function SignInForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
-  const handleSignin = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
+    setError(null)
+
     try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      if (!response.ok) {
-        throw new Error(await response.text())
-      }
+      if (error) throw error
 
-      router.refresh()
-      router.push("/dashboard")
-    } catch (error: any) {
-      setError(error.message)
+      if (data?.session) {
+        // Get user metadata to determine redirect path
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        const userType = user?.user_metadata?.user_type
+
+        // Redirect based on user type
+        if (userType === "creator") {
+          router.replace("/dashboard")
+        } else if (userType === "brand") {
+          router.replace("/onboarding")
+        }
+      }
+    } catch (error) {
+      const authError = error as AuthError
+      setError(authError.message)
+      console.error("Error signing in:", authError.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -68,7 +89,7 @@ export function SignInForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignin} className="space-y-4">
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-zinc-300">
                 Email
@@ -100,9 +121,10 @@ export function SignInForm() {
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button
               type="submit"
-              className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
+              disabled={loading}
+              className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
             <p className="text-sm text-zinc-400 text-center">
               Need an account?{" "}

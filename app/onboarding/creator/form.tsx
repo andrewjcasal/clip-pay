@@ -1,172 +1,107 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../../../lib/supabaseClient"
-import { Button } from "../../../components/ui/button"
-import { Card, CardContent } from "../../../components/ui/card"
-import { Input } from "../../../components/ui/input"
-import { Label } from "../../../components/ui/label"
-import { loadConnectAndInitialize } from "@stripe/connect-js"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
-type OnboardingStep = "profile" | "verification" | "platforms" | "complete"
+interface CreatorOnboardingFormProps {
+  userEmail: string
+  accountLinkUrl: string
+}
 
-export default function CreatorOnboarding() {
-  const router = useRouter()
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>("profile")
-  const [isEmailVerified, setIsEmailVerified] = useState(false)
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
-  const [profile, setProfile] = useState({
-    organizationName: "",
-  })
+export function CreatorOnboardingForm({
+  userEmail,
+  accountLinkUrl,
+}: CreatorOnboardingFormProps) {
+  const [organizationName, setOrganizationName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [stripeConnect, setStripeConnect] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClientComponentClient()
 
-  useEffect(() => {
-    const checkEmailVerification = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Get current user first to ensure we have the ID
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      setIsEmailVerified(user?.email_confirmed_at != null)
-    }
+      if (!user) throw new Error("User not found")
 
-    checkEmailVerification()
-  }, [])
+      // Update profile with organization name
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          organization_name: organizationName,
+        })
+        .eq("id", user.id)
 
-  const handleSubmit = async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch("/api/creator/setup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ organizationName: profile.organizationName }),
-      })
+      if (updateError) throw updateError
 
-      if (!response.ok) {
-        throw new Error(await response.text())
-      }
-
-      router.push("/creator/dashboard")
+      // Redirect to Stripe Connect onboarding
+      window.location.href = accountLinkUrl
     } catch (error) {
-      console.error("Setup error:", error)
+      console.error("Error in creator onboarding:", error)
+      setError(error instanceof Error ? error.message : "Something went wrong")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case "profile":
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white">
-                Set up your profile
-              </h2>
-              <p className="text-zinc-400">Enter your organization details</p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="organizationName" className="text-zinc-300">
-                  Organization Name
-                </Label>
-                <Input
-                  id="organizationName"
-                  value={profile.organizationName}
-                  onChange={(e) =>
-                    setProfile((p) => ({
-                      ...p,
-                      organizationName: e.target.value,
-                    }))
-                  }
-                  className="border-0 bg-[#1E1F22] text-white"
-                  placeholder="Your organization name"
-                />
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
+      <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Complete Your Profile
+          </CardTitle>
+          <CardDescription className="text-zinc-400">
+            Tell us about your organization
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm bg-red-500/10 border border-red-500/20 rounded text-red-500">
+                {error}
               </div>
-
-              <Button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="w-full bg-[#5865F2]"
-              >
-                {isLoading ? "Setting up..." : "Continue"}
-              </Button>
-            </div>
-          </div>
-        )
-
-      case "verification":
-        if (!clientSecret || !stripeConnect) return null
-
-        return (
-          <div className="space-y-6">
+            )}
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white">
-                Complete Your Setup
-              </h2>
-              <p className="text-zinc-400">
-                Please complete the verification process
-              </p>
-            </div>
-
-            <div className="bg-[#1E1F22] rounded-lg p-4">
-              <ConnectComponentsProvider stripe={stripeConnect}>
-                <ConnectAccountOnboarding clientSecret={clientSecret} />
-              </ConnectComponentsProvider>
-            </div>
-          </div>
-        )
-
-      case "platforms":
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white">
-                Connect your platforms
-              </h2>
-              <p className="text-zinc-400">Link your social media accounts</p>
-            </div>
-
-            <div className="space-y-4">
-              <Button
-                onClick={() => {
-                  // Add platform connection logic here
-                  setCurrentStep("complete")
-                }}
-                className="w-full bg-[#5865F2]"
-              >
-                Connect Platforms
-              </Button>
-            </div>
-          </div>
-        )
-
-      case "complete":
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white">All set!</h2>
-              <p className="text-zinc-400">Your profile is ready to go</p>
+              <Label htmlFor="organizationName" className="text-zinc-300">
+                Organization Name
+              </Label>
+              <Input
+                id="organizationName"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                className="border-0 bg-[#1E1F22] text-white focus:ring-2 focus:ring-[#5865F2]"
+                placeholder="Enter your organization name"
+                required
+              />
             </div>
 
             <Button
-              onClick={() => router.push("/dashboard")}
-              className="w-full bg-[#5865F2]"
+              type="submit"
+              className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
+              disabled={isLoading}
             >
-              Go to Dashboard
+              {isLoading ? "Setting up..." : "Continue to Verification"}
             </Button>
-          </div>
-        )
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Card className="w-full max-w-md border-none bg-[#2B2D31]">
-        <CardContent className="pt-6">{renderStep()}</CardContent>
+          </form>
+        </CardContent>
       </Card>
     </div>
   )

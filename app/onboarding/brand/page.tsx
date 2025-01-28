@@ -9,7 +9,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export default async function BrandOnboarding() {
-  console.log("Secret Key:", process.env.STRIPE_SECRET_KEY?.slice(-4))
   const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
@@ -42,7 +41,6 @@ export default async function BrandOnboarding() {
           user_id: session.user.id,
         },
       })
-      console.log("Created customer:", customer.id)
 
       await supabase
         .from("profiles")
@@ -53,7 +51,6 @@ export default async function BrandOnboarding() {
         customer: customer.id,
         payment_method_types: ["card"],
       })
-      console.log("Created setup intent:", setupIntent.id)
     } else {
       // Existing customer - create new setup intent
       setupIntent = await stripe.setupIntents.create({
@@ -62,16 +59,13 @@ export default async function BrandOnboarding() {
       })
     }
   } catch (error) {
-    console.error("Detailed Stripe error:", error)
+    console.error("Stripe setup error:", error)
+    throw new Error("Failed to setup payment")
   }
 
   if (!setupIntent?.client_secret) {
     throw new Error("Failed to create setup intent")
   }
-  console.log(
-    "Setup intent client secret:",
-    setupIntent.client_secret.slice(-10)
-  )
 
   return (
     <BrandOnboardingClient
