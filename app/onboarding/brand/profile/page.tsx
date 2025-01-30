@@ -28,5 +28,5 @@ export default async function BrandOnboardingStep1() {
     redirect("/onboarding/brand/step2")
   }
 
-  return <Step1Form userEmail={session.user.email as string} />
+  return <Step1Form />
 }

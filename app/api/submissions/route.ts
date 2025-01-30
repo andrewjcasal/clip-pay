@@ -3,13 +3,19 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { Deepgram } from "@deepgram/sdk"
 import { spawn } from "child_process"
-import { unlink, readFile } from "fs/promises"
-import { createWriteStream } from "fs"
-import { pipeline } from "stream/promises"
-import fetch from "node-fetch"
+import { unlink, readFile, writeFile } from "fs/promises"
 import { SupabaseClient } from "@supabase/supabase-js"
 
-const deepgram = new Deepgram(process.env.DEEPGRAM_API_KEY!)
+if (!process.env.DEEPGRAM_API_KEY) {
+  throw new Error("Missing DEEPGRAM_API_KEY environment variable")
+}
+
+const deepgram = new Deepgram(process.env.DEEPGRAM_API_KEY)
+
+// For Netlify, we need to export config
+export const config = {
+  runtime: "nodejs18.x",
+}
 
 export async function POST(req: Request) {
   try {
@@ -75,14 +81,16 @@ async function processVideo(
       // Download from URL
       const response = await fetch(videoSource)
       if (!response.ok) throw new Error("Failed to fetch video")
-      await pipeline(response.body!, createWriteStream(tempVideoPath))
+      const arrayBuffer = await response.arrayBuffer()
+      await writeFile(tempVideoPath, Buffer.from(arrayBuffer))
     } else {
       // Get from Supabase storage
       const { data, error } = await supabase.storage
         .from("videos")
         .download(videoSource)
       if (error) throw error
-      await pipeline(data, createWriteStream(tempVideoPath))
+      const arrayBuffer = await data.arrayBuffer()
+      await writeFile(tempVideoPath, Buffer.from(arrayBuffer))
     }
 
     // Extract audio using ffmpeg
@@ -108,22 +116,25 @@ async function processVideo(
 
     // Transcribe with Deepgram
     const audioBuffer = await readFile(tempAudioPath)
-    const { results } = await deepgram.transcription.preRecorded(
-      {
-        buffer: audioBuffer,
-        mimetype: "audio/wav",
-      },
-      {
-        smart_format: true,
-        punctuate: true,
-      }
-    )
+    const source = {
+      buffer: audioBuffer,
+      mimetype: "audio/wav",
+    }
+
+    const response = await deepgram.transcription.preRecorded(source, {
+      smart_format: true,
+      punctuate: true,
+    })
+
+    if (!response?.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
+      throw new Error("Failed to get transcription from Deepgram")
+    }
 
     // Update submission with transcription
     const { error: updateError } = await supabase
       .from("submissions")
       .update({
-        transcription: results.channels[0].alternatives[0].transcript,
+        transcription: response.results.channels[0].alternatives[0].transcript,
         processed_at: new Date().toISOString(),
       })
       .eq("id", submissionId)

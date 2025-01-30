@@ -67,7 +67,8 @@ export default function SignInForm() {
       <div
         className="absolute inset-0 opacity-40"
         style={{
-          backgroundImage: `url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")`,
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")',
           backgroundSize: "cover",
           backgroundPosition: "center",
           transform: "rotate(30deg) scale(1.5)",
