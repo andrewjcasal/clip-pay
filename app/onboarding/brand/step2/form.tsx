@@ -16,11 +16,7 @@ import {
   useElements,
   Elements,
 } from "@stripe/react-stripe-js"
-import {
-  loadStripe,
-  type SetupIntent,
-  type StripeError,
-} from "@stripe/stripe-js"
+import { loadStripe, type SetupIntent } from "@stripe/stripe-js"
 import {
   completeOnboardingWithPayment,
   skipPaymentSetup,
@@ -57,31 +53,9 @@ function PaymentForm({ userId }: { userId: string }) {
       const result = await stripe.confirmSetup({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/onboarding/brand/confirmation`,
+          return_url: `${window.location.origin}/dashboard`,
         },
       })
-
-      console.log("result", result)
-
-      if (result.error) {
-        throw result.error
-      }
-
-      const setupIntent = result.setupIntent as SetupIntent
-      if (!setupIntent?.id) {
-        throw new Error("Failed to get setup intent ID")
-      }
-
-      // Complete onboarding with the setupIntent
-      const onboardingResult = await completeOnboardingWithPayment(
-        setupIntent.id
-      )
-
-      if (onboardingResult.success) {
-        router.push("/dashboard")
-      } else {
-        throw new Error(onboardingResult.error)
-      }
     } catch (err) {
       console.error("Error in payment setup:", err)
       setError(

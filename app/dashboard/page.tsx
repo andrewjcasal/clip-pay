@@ -3,7 +3,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
-import { DashboardClient } from "./client"
+import { DashboardClient } from "./brand-client"
 import { CreatorDashboardClient } from "./creator-client"
 
 interface Brand {
@@ -81,15 +81,15 @@ export default async function DashboardPage() {
 
   // For brands, get campaigns with submissions
   if (profile?.user_type === "brand") {
-    const { data: brand } = await supabase
-      .from("brands")
-      .select("id, name:organization_name")
-      .eq("user_id", session.user.id)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name:organization_name")
+      .eq("id", session.user.id)
       .single()
 
-    if (!brand) {
-      console.error("Brand not found for user:", session.user.id)
-      throw new Error("Brand not found")
+    if (!profile) {
+      console.error("Profile not found for user:", session.user.id)
+      throw new Error("Profile not found")
     }
 
     const { data: campaigns, error } = await supabase
@@ -106,16 +106,14 @@ export default async function DashboardPage() {
           created_at,
           views,
           creator_id,
-          creator:creators (
-            user:profiles (
-              full_name:organization_name,
-              email
-            )
+          creator:creator_profiles (
+            full_name:organization_name,
+            email
           )
         )
       `
       )
-      .eq("brand_id", brand.id)
+      .eq("brand_id", session.user.id)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -136,7 +134,7 @@ export default async function DashboardPage() {
         brand_id: campaign.brand_id,
         created_at: campaign.created_at,
         brand: {
-          name: brand.name,
+          name: profile.name,
         },
         submissions: (campaign.submissions || []).map((submission: any) => ({
           id: submission.id,
@@ -161,7 +159,7 @@ export default async function DashboardPage() {
     return (
       <DashboardClient
         initialCampaigns={transformedCampaigns}
-        brandId={brand.id}
+        brandId={session.user.id}
       />
     )
   }
@@ -214,4 +212,5 @@ export default async function DashboardPage() {
   )
 
   return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
+  // return null
 }

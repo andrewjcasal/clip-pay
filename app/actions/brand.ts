@@ -40,7 +40,6 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
       .from("profiles")
       .update({
         onboarding_completed: true,
-        payment_verified: true,
       })
       .eq("id", session.user.id)
 

@@ -6,7 +6,7 @@ import { DashboardHeader } from "../dashboard/header"
 export const dynamic = "force-dynamic"
 
 export default async function SubmissionsPage() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createServerComponentClient({
     cookies: () => cookieStore,
   })
