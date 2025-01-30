@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useState, useEffect } from "react"
+import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { signUp } from "../actions/auth"
 import {
   Card,
   CardContent,
@@ -21,60 +22,38 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+type State = {
+  success?: boolean
+  message?: string
+} | null
+
+const signUpAction = async (_: State, formData: FormData) => {
+  try {
+    await signUp(formData)
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "An unexpected error occurred",
+    }
+  }
+}
+
 export function SignUpForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [userType, setUserType] = useState("creator")
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const supabase = createClientComponentClient()
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const [state, action] = useActionState(signUpAction, null)
 
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
-          data: {
-            user_type: userType,
-          },
-        },
-      })
-
-      if (error) {
-        throw error
-      }
-
-      if (user) {
-        if (userType === "brand") {
-          await supabase.from("brands").insert({
-            user_id: user.id,
-          })
-        }
-
-        // For admin users, we'll set onboarding_completed to true
-        if (userType === "admin") {
-          await supabase
-            .from("profiles")
-            .update({ onboarding_completed: true })
-            .eq("id", user.id)
-        }
-
-        setIsSubmitted(true)
-      }
-    } catch (error) {
-      console.error("Error signing up:", error)
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (state?.success) {
+      setIsSubmitted(true)
     }
-  }
+  }, [state])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
@@ -123,13 +102,14 @@ export function SignUpForm() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignUp} className="space-y-4">
+              <form action={action} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-zinc-300">
                     Email
                   </Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -144,6 +124,7 @@ export function SignUpForm() {
                   </Label>
                   <Input
                     id="password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -157,6 +138,7 @@ export function SignUpForm() {
                     Sign up as
                   </Label>
                   <Select
+                    name="userType"
                     value={userType}
                     onValueChange={(value) => setUserType(value)}
                   >
@@ -170,6 +152,9 @@ export function SignUpForm() {
                     </SelectContent>
                   </Select>
                 </div>
+                {state?.message && (
+                  <p className="text-red-500 text-sm">{state.message}</p>
+                )}
                 <Button
                   type="submit"
                   className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors"

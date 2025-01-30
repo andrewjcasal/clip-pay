@@ -1,7 +1,29 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import {
+  createServerSupabaseClient,
+  getAuthenticatedUser,
+} from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { DashboardClient } from "./client"
 import { CreatorDashboardClient } from "./creator-client"
+
+interface Brand {
+  name: string
+}
+
+interface Submission {
+  id: string
+  video_url: string
+  file_path: string | null
+  transcription: string
+  creator_id: string
+  status: string
+  created_at: string
+  views: number
+  profiles: {
+    full_name: string
+    email: string
+  }
+}
 
 export interface Campaign {
   id: string
@@ -13,38 +35,47 @@ export interface Campaign {
   status: string
   brand_id: string
   created_at: string
-  brand: {
-    name: string
-  }
-  submissions: {
+  brand: Brand
+}
+
+interface CampaignWithSubmissions extends Campaign {
+  submissions: Submission[]
+  activeSubmissionsCount: number
+}
+
+interface CreatorCampaign extends Campaign {
+  submission: {
     id: string
+    status: string
     video_url: string | null
     file_path: string | null
-    transcription: string | null
-    status: string
-    created_at: string
-    views: number
-    profiles: {
-      full_name: string
-      email: string
-    }
-  }[]
+  } | null
 }
 
 export default async function DashboardPage() {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    redirect("/signin")
+  }
+  console.log("here A")
 
   // Get user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_type, organization_name, onboarding_completed")
+    .select("id, user_type, organization_name, onboarding_completed")
     .eq("id", session.user.id)
     .single()
+  console.log("here B", profile)
+  console.log("here C", session.user.id)
 
   // If onboarding not completed, redirect to appropriate onboarding flow
   if (!profile?.onboarding_completed) {
     redirect(
-      `/onboarding/${profile?.user_type === "brand" ? "brand" : "creator"}`
+      `/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator/profile"}`
     )
   }
 
@@ -52,7 +83,7 @@ export default async function DashboardPage() {
   if (profile?.user_type === "brand") {
     const { data: brand } = await supabase
       .from("brands")
-      .select("id")
+      .select("id, name:organization_name")
       .eq("user_id", session.user.id)
       .single()
 
@@ -74,9 +105,12 @@ export default async function DashboardPage() {
           status,
           created_at,
           views,
-          profiles (
-            full_name,
-            email
+          creator_id,
+          creator:creators (
+            user:profiles (
+              full_name:organization_name,
+              email
+            )
           )
         )
       `
@@ -89,7 +123,47 @@ export default async function DashboardPage() {
       throw error
     }
 
-    return <DashboardClient initialCampaigns={campaigns} brandId={brand.id} />
+    // Transform the data to match the expected format
+    const transformedCampaigns: CampaignWithSubmissions[] = campaigns.map(
+      (campaign: any) => ({
+        id: campaign.id,
+        title: campaign.title,
+        budget_pool: campaign.budget_pool,
+        rpm: campaign.rpm,
+        guidelines: campaign.guidelines,
+        video_outline: campaign.video_outline,
+        status: campaign.status,
+        brand_id: campaign.brand_id,
+        created_at: campaign.created_at,
+        brand: {
+          name: brand.name,
+        },
+        submissions: (campaign.submissions || []).map((submission: any) => ({
+          id: submission.id,
+          video_url: submission.video_url || "",
+          file_path: submission.file_path,
+          transcription: submission.transcription || "",
+          creator_id: submission.creator_id,
+          status: submission.status,
+          created_at: submission.created_at,
+          views: submission.views,
+          profiles: {
+            full_name: submission.creator?.user?.full_name || "",
+            email: submission.creator?.user?.email || "",
+          },
+        })),
+        activeSubmissionsCount: (campaign.submissions || []).filter(
+          (s: any) => s.status === "active"
+        ).length,
+      })
+    )
+
+    return (
+      <DashboardClient
+        initialCampaigns={transformedCampaigns}
+        brandId={brand.id}
+      />
+    )
   }
 
   // For creators, get available campaigns
@@ -121,13 +195,23 @@ export default async function DashboardPage() {
   }
 
   // Transform the data to match the expected format
-  const transformedCampaigns = campaigns.map((campaign) => ({
-    ...campaign,
-    brand: {
-      name: campaign.brand?.name?.organization_name,
-    },
-    submission: campaign.submission?.[0] || null,
-  }))
+  const transformedCampaigns: CreatorCampaign[] = campaigns.map(
+    (campaign: any) => ({
+      id: campaign.id,
+      title: campaign.title,
+      budget_pool: campaign.budget_pool,
+      rpm: campaign.rpm,
+      guidelines: campaign.guidelines,
+      video_outline: campaign.video_outline,
+      status: campaign.status,
+      brand_id: campaign.brand_id,
+      created_at: campaign.created_at,
+      brand: {
+        name: campaign.brand?.name?.organization_name || "",
+      },
+      submission: campaign.submission?.[0] || null,
+    })
+  )
 
   return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
 }

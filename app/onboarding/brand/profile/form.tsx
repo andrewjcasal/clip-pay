@@ -12,14 +12,13 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { updateBrandProfile } from "@/app/actions/brand"
 
-export function Step1Form() {
+export function Step1Form({ userId }: { userId: string }) {
   const [organizationName, setOrganizationName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,26 +26,15 @@ export function Step1Form() {
     setError(null)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not found")
+      const result = await updateBrandProfile(organizationName)
 
-      // Update profile with organization name
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          organization_name: organizationName,
-        })
-        .eq("id", user.id)
-
-      if (updateError) throw updateError
-
-      // Redirect to step 2
-      router.push("/onboarding/brand/step2")
-    } catch (error) {
-      console.error("Error in brand onboarding step 1:", error)
-      setError(error instanceof Error ? error.message : "Something went wrong")
+      if (result.success) {
+        router.push("/onboarding/brand/step2")
+      } else {
+        setError(result.error || "Something went wrong")
+      }
+    } catch (err) {
+      setError("Failed to update profile")
     } finally {
       setIsLoading(false)
     }

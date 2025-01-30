@@ -5,7 +5,6 @@ export default async function AdminPage() {
   const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
-  console.log("in here")
   const { data: users } = await supabase
     .from("profiles")
     .select("*")

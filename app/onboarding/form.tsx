@@ -146,8 +146,6 @@ export function BrandOnboardingClient({
   userEmail,
   clientSecret,
 }: BrandOnboardingClientProps) {
-  console.log("Client secret received:", clientSecret?.slice(-10))
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
       <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">

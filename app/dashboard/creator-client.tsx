@@ -197,8 +197,6 @@ export function CreatorDashboardClient({
     )
   }
 
-  console.log("selectedCampaign ab", selectedCampaign)
-
   return (
     <div className="min-h-screen bg-[#313338]">
       {/* Remove the Top Nav */}
@@ -236,7 +234,6 @@ export function CreatorDashboardClient({
           </div>
           <div className="space-y-2">
             {initialCampaigns.map((campaign) => {
-              console.log("dby", campaign)
               return (
                 <div
                   key={campaign.id}

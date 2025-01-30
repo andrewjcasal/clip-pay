@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@/utils/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { LandingContent } from "./content"
 
 export default async function LandingPage() {

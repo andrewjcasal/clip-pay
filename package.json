@@ -2,12 +2,11 @@
   "name": "creator-pay",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "next lint",
     "lint:fix": "eslint --fix .",
     "format": "prettier --write 'app/**/*.{js,jsx,ts,tsx,css,md,json}'",
     "prepare": "husky install"
@@ -20,7 +19,6 @@
   },
   "dependencies": {
     "@deepgram/sdk": "^2.4.0",
-    "@netlify/plugin-nextjs": "latest",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-dialog": "^1.1.5",
     "@radix-ui/react-dropdown-menu": "^2.1.5",

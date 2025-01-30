@@ -1,20 +1,33 @@
-import { createServerComponentClient, createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers'
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"
 
-export function createServerSupabaseClient() {
-  const cookieStore = cookies()
-  return createServerComponentClient({ cookies: () => cookieStore })
-}
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies()
 
-export function createRouteSupabaseClient() {
-  const cookieStore = cookies()
-  return createRouteHandlerClient({ cookies: () => cookieStore })
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 })
+        },
+      },
+    }
+  )
 }
 
 export async function getAuthenticatedUser() {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -27,7 +40,7 @@ export async function getAuthenticatedUser() {
 }
 
 export async function getOptionalUser() {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -36,7 +49,7 @@ export async function getOptionalUser() {
 }
 
 export async function getAuthenticatedRoute() {
-  const supabase = createRouteSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
