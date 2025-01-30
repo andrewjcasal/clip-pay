@@ -88,8 +88,8 @@ export default async function SubmissionsPage() {
                       submission.status === "approved"
                         ? "bg-green-500/10 text-green-500"
                         : submission.status === "rejected"
-                        ? "bg-red-500/10 text-red-500"
-                        : "bg-yellow-500/10 text-yellow-500"
+                          ? "bg-red-500/10 text-red-500"
+                          : "bg-yellow-500/10 text-yellow-500"
                     }`}
                   >
                     {submission.status.charAt(0).toUpperCase() +

@@ -47,4 +47,4 @@ export async function POST(request: Request) {
     console.error("Error in creator setup:", error)
     return new NextResponse("Internal Server Error", { status: 500 })
   }
-} 
+}

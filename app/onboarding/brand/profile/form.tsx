@@ -14,11 +14,7 @@ import {
 } from "@/components/ui/card"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
-interface Step1FormProps {
-  userEmail: string
-}
-
-export function Step1Form({ userEmail }: Step1FormProps) {
+export function Step1Form() {
   const [organizationName, setOrganizationName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +60,7 @@ export function Step1Form({ userEmail }: Step1FormProps) {
             Welcome to Creator Pay
           </CardTitle>
           <CardDescription className="text-zinc-400">
-            Let's start by setting up your brand profile
+            Let&apos;s start by setting up your brand profile
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,8 +86,8 @@ export function Step1Form({ userEmail }: Step1FormProps) {
 
             <div className="text-sm text-zinc-400 space-y-4">
               <p>
-                Next, you'll have the option to add a payment method. This will
-                be used to:
+                Next, you&apos;ll have the option to add a payment method. This
+                will be used to:
               </p>
               <ul className="list-disc pl-4 space-y-2">
                 <li>Pay creators for their approved submissions</li>
@@ -99,8 +95,8 @@ export function Step1Form({ userEmail }: Step1FormProps) {
                 <li>Build trust with creators (verified payment status)</li>
               </ul>
               <p>
-                You can skip the payment setup for now, but your brand won't be
-                marked as verified until you add a payment method.
+                You can skip the payment setup for now, but your brand
+                won&apos;t be marked as verified until you add a payment method.
               </p>
             </div>
 

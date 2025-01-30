@@ -89,7 +89,7 @@ export function CreatorDashboardClient({
         <div className="space-y-4 mb-4">
           <div className="bg-blue-500/10 text-blue-500 p-4 rounded-md space-y-3">
             <h3 className="text-lg font-medium">
-              You've already submitted for this campaign
+              You&apos;ve already submitted for this campaign
             </h3>
             <p className="text-sm">
               View your submission in your{" "}
@@ -278,7 +278,7 @@ export function CreatorDashboardClient({
                 <div className="mb-6">
                   <div className="bg-blue-500/10 text-blue-500 p-4 rounded-md space-y-3">
                     <h3 className="text-lg font-medium">
-                      You've already submitted for this campaign
+                      You&apos;ve already submitted for this campaign
                     </h3>
                     <p className="text-sm">
                       View your submission in your{" "}

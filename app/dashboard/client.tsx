@@ -14,12 +14,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Campaign } from "./page"
 import { formatDistanceToNow } from "date-fns"
 import ReactPlayer from "react-player"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 import { approveSubmission, rejectSubmission, createCampaign } from "./actions"
 import { useRouter } from "next/navigation"
 import { X } from "lucide-react"

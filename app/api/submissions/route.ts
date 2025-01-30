@@ -3,11 +3,11 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { Deepgram } from "@deepgram/sdk"
 import { spawn } from "child_process"
-import { promisify } from "util"
-import { unlink } from "fs/promises"
+import { unlink, readFile } from "fs/promises"
 import { createWriteStream } from "fs"
 import { pipeline } from "stream/promises"
 import fetch from "node-fetch"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 const deepgram = new Deepgram(process.env.DEEPGRAM_API_KEY!)
 
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 async function processVideo(
   videoSource: string,
   submissionId: string,
-  supabase: any
+  supabase: SupabaseClient
 ) {
   try {
     // Download video to temp file
@@ -75,10 +75,7 @@ async function processVideo(
       // Download from URL
       const response = await fetch(videoSource)
       if (!response.ok) throw new Error("Failed to fetch video")
-      await pipeline(
-        response.body!,
-        createWriteStream(tempVideoPath)
-      )
+      await pipeline(response.body!, createWriteStream(tempVideoPath))
     } else {
       // Get from Supabase storage
       const { data, error } = await supabase.storage
@@ -110,7 +107,7 @@ async function processVideo(
     })
 
     // Transcribe with Deepgram
-    const audioBuffer = await promisify(require("fs").readFile)(tempAudioPath)
+    const audioBuffer = await readFile(tempAudioPath)
     const { results } = await deepgram.transcription.preRecorded(
       {
         buffer: audioBuffer,
@@ -134,10 +131,7 @@ async function processVideo(
     if (updateError) throw updateError
 
     // Cleanup temp files
-    await Promise.all([
-      unlink(tempVideoPath),
-      unlink(tempAudioPath),
-    ])
+    await Promise.all([unlink(tempVideoPath), unlink(tempAudioPath)])
   } catch (err) {
     console.error("Error processing video:", err)
     const error = err as Error
@@ -148,4 +142,4 @@ async function processVideo(
       })
       .eq("id", submissionId)
   }
-} 
+}

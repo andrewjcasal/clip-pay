@@ -24,21 +24,11 @@ const stripePromise = loadStripe(
 )
 
 interface Step2FormProps {
-  userEmail: string
   clientSecret: string
   userId: string
-  brandId: string
 }
 
-function PaymentForm({
-  userEmail,
-  userId,
-  brandId,
-}: {
-  userEmail: string
-  userId: string
-  brandId: string
-}) {
+function PaymentForm({ userId }: { userId: string }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -115,8 +105,8 @@ function PaymentForm({
       <div className="text-sm text-zinc-400 space-y-4">
         <p>
           Add a payment method to verify your brand and start working with
-          creators. Your card will only be charged when you approve a creator's
-          submission.
+          creators. Your card will only be charged when you approve a
+          creator&apos;s submission.
         </p>
       </div>
 
@@ -143,12 +133,7 @@ function PaymentForm({
   )
 }
 
-export function Step2Form({
-  userEmail,
-  clientSecret,
-  userId,
-  brandId,
-}: Step2FormProps) {
+export function Step2Form({ clientSecret, userId }: Step2FormProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
       <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
@@ -175,11 +160,7 @@ export function Step2Form({
               },
             }}
           >
-            <PaymentForm
-              userEmail={userEmail}
-              userId={userId}
-              brandId={brandId}
-            />
+            <PaymentForm userId={userId} />
           </Elements>
         </CardContent>
       </Card>

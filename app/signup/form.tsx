@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +22,6 @@ import {
 } from "@/components/ui/select"
 
 export function SignUpForm() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [userType, setUserType] = useState("creator")
@@ -102,8 +100,8 @@ export function SignUpForm() {
             <div className="mb-4">
               <h2 className="text-2xl font-bold mb-2">Check your email</h2>
               <p className="text-zinc-400">
-                We've sent you an email to {email} with a link to confirm your
-                account.
+                We&apos;ve sent you an email to {email} with a link to confirm
+                your account.
               </p>
             </div>
             <Link

@@ -12,7 +12,6 @@ export default async function NotificationsPage() {
 
   const {
     data: { session },
-    error: authError,
   } = await supabase.auth.getSession()
   if (!session?.user) {
     redirect("/signin")

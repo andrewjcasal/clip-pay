@@ -1,4 +1,4 @@
-'use server'
+"use server"
 
 import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
@@ -14,9 +14,7 @@ export async function approveSubmission(submissionId: string) {
 
   // Calculate due date
   const payoutDueDate = new Date()
-  payoutDueDate.setMinutes(
-    payoutDueDate.getMinutes() + payoutDurationMinutes
-  )
+  payoutDueDate.setMinutes(payoutDueDate.getMinutes() + payoutDurationMinutes)
 
   const { data, error } = await supabase
     .from("submissions")
@@ -32,7 +30,7 @@ export async function approveSubmission(submissionId: string) {
     throw error
   }
 
-  revalidatePath('/dashboard')
+  revalidatePath("/dashboard")
   return data
 }
 
@@ -40,7 +38,7 @@ export async function rejectSubmission(submissionId: string) {
   const supabase = createServerActionClient({ cookies })
 
   // Try a simpler select first to verify the submission
-  const { data: checkData, error: checkError } = await supabase
+  const { error: checkError } = await supabase
     .from("submissions")
     .select(
       `
@@ -70,7 +68,7 @@ export async function rejectSubmission(submissionId: string) {
     throw error
   }
 
-  revalidatePath('/dashboard')
+  revalidatePath("/dashboard")
   return data
 }
 
@@ -127,7 +125,10 @@ export async function submitVideo({
 
   try {
     // Get the current user's session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
     if (sessionError) throw sessionError
     if (!session) throw new Error("No session found")
 
@@ -173,10 +174,10 @@ export async function submitVideo({
       throw submissionError
     }
 
-    revalidatePath('/dashboard')
+    revalidatePath("/dashboard")
     return submission
   } catch (error) {
     console.error("Error in video submission:", error)
     throw error
   }
-} 
+}
