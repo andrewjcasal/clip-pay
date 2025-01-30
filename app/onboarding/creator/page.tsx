@@ -1,5 +1,4 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedUser } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { CreatorOnboardingForm } from "./form"
 import Stripe from "stripe"
@@ -9,16 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export default async function CreatorOnboarding() {
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    redirect("/signin")
-  }
+  const { session, supabase } = await getAuthenticatedUser()
 
   const { data: profile } = await supabase
     .from("profiles")

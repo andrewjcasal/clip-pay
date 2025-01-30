@@ -1,52 +1,79 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedUser } from "@/lib/supabase-server"
 
-export default async function CreatorsPage() {
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+export default async function AdminCreatorsPage() {
+  const { supabase } = await getAuthenticatedUser()
 
   const { data: creators, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, submissions(count)")
     .eq("user_type", "creator")
     .order("created_at", { ascending: false })
 
-  console.log("Creators data:", creators)
-  console.log("Query error:", error)
-
-  if (!creators || creators.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-white">Creators</h1>
-        <div className="bg-[#2B2D31] rounded-lg p-6">
-          <p className="text-zinc-400">No creators found</p>
-        </div>
-      </div>
-    )
+  if (error) {
+    console.error("Error fetching creators:", error)
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Creators</h1>
-      <div className="bg-[#2B2D31] rounded-lg p-6">
-        <div className="space-y-4">
-          {creators?.map((creator) => (
-            <div
-              key={creator.id}
-              className="flex items-center justify-between p-4 bg-[#1E1F22] rounded-md text-white"
-            >
-              <div>
-                <p className="font-medium">
-                  {creator.organization_name || "No name"}
-                </p>
-                <p className="text-sm text-zinc-400">{creator.email}</p>
-              </div>
-              <div className="text-sm text-zinc-400">
-                {new Date(creator.created_at).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div>
+      <h1 className="text-2xl font-bold mb-6 text-white">Creators</h1>
+      <div className="bg-[#2B2D31] rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-zinc-700">
+          <thead className="bg-[#1E1F22]">
+            <tr>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Organization
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Email
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Stripe Account
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Submissions
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Created
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-700">
+            {creators?.map((creator) => (
+              <tr key={creator.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {creator.organization_name || "Not set"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {creator.email}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {creator.stripe_account_id || "Not set"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {creator.submissions?.[0]?.count || 0}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {new Date(creator.created_at).toLocaleDateString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

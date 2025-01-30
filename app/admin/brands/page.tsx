@@ -1,51 +1,77 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedUser } from "@/lib/supabase-server"
 
-export default async function BrandsPage() {
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+export default async function AdminBrandsPage() {
+  const { supabase } = await getAuthenticatedUser()
 
-  const { data: brands } = await supabase
-    .from("profiles")
-    .select("*, brands (*)")
-    .eq("user_type", "brand")
+  const { data: brands, error } = await supabase
+    .from("brands")
+    .select(
+      `
+      *,
+      profiles (
+        email,
+        organization_name
+      )
+    `
+    )
     .order("created_at", { ascending: false })
 
-  console.log("Brands data:", brands)
-
-  if (!brands || brands.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-white">Brands</h1>
-        <div className="bg-[#2B2D31] rounded-lg p-6">
-          <p className="text-zinc-400">No brands found</p>
-        </div>
-      </div>
-    )
+  if (error) {
+    console.error("Error fetching brands:", error)
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Brands</h1>
-      <div className="bg-[#2B2D31] rounded-lg p-6">
-        <div className="space-y-4">
-          {brands.map((brand) => (
-            <div
-              key={brand.id}
-              className="flex items-center justify-between p-4 bg-[#1E1F22] rounded-md text-white"
-            >
-              <div>
-                <p className="font-medium">
-                  {brand.organization_name || "No name"}
-                </p>
-                <p className="text-sm text-zinc-400">{brand.email}</p>
-              </div>
-              <div className="text-sm text-zinc-400">
-                {new Date(brand.created_at).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div>
+      <h1 className="text-2xl font-bold mb-6 text-white">Brands</h1>
+      <div className="bg-[#2B2D31] rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-zinc-700">
+          <thead className="bg-[#1E1F22]">
+            <tr>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Organization
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Email
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Stripe Customer
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider"
+              >
+                Created
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-700">
+            {brands?.map((brand) => (
+              <tr key={brand.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {brand.profiles?.organization_name || "Not set"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {brand.profiles?.email}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {brand.stripe_customer_id || "Not set"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                  {new Date(brand.created_at).toLocaleDateString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

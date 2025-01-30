@@ -1,20 +1,13 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedRoute } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-    // Get the current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 })
+    const authResult = await getAuthenticatedRoute()
+    if (authResult instanceof NextResponse) {
+      return authResult
     }
+    const { session, supabase } = authResult
 
     // Get the request body
     const { organizationName } = await request.json()
@@ -30,7 +23,7 @@ export async function POST(request: Request) {
         organization_name: organizationName,
         onboarding_completed: true,
       })
-      .eq("id", user.id)
+      .eq("id", session.user.id)
 
     if (updateError) {
       console.error("Error updating profile:", updateError)

@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedRoute } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 import { Deepgram } from "@deepgram/sdk"
 import { spawn } from "child_process"
@@ -19,17 +18,11 @@ export const config = {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-    // Get user session
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 })
+    const authResult = await getAuthenticatedRoute()
+    if (authResult instanceof NextResponse) {
+      return authResult // Return the unauthorized response
     }
+    const { session, supabase } = authResult
 
     const { campaign_id, video_url, file_path } = await req.json()
 

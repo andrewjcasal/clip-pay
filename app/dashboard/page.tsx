@@ -1,190 +1,133 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { getAuthenticatedUser } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { DashboardClient } from "./client"
 import { CreatorDashboardClient } from "./creator-client"
-import { cookies } from "next/headers"
-import { DashboardHeader } from "./header"
-
-export const dynamic = "force-dynamic"
-export const revalidate = 0
 
 export interface Campaign {
   id: string
-  created_at: string
-  updated_at: string
-  brand_id: string
   title: string
-  budget_pool: string
-  rpm: string
+  budget_pool: number
+  rpm: number
   guidelines: string
-  status: string
   video_outline: string | null
-  brands?: {
+  status: string
+  brand_id: string
+  created_at: string
+  brand: {
     name: string
-    logo_url: string | null
   }
-  submissions?: Array<{
+  submissions: {
     id: string
+    video_url: string | null
+    file_path: string | null
+    transcription: string | null
     status: string
-    video_url: string
     created_at: string
-  }>
+    views: number
+    profiles: {
+      full_name: string
+      email: string
+    }
+  }[]
 }
 
-export default async function Dashboard() {
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({
-    cookies: () => cookieStore,
-  })
+export default async function DashboardPage() {
+  const { session, supabase } = await getAuthenticatedUser()
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
+  // Get user profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_type, organization_name, onboarding_completed")
+    .eq("id", session.user.id)
+    .single()
 
-  if (sessionError || !session) {
-    console.error("Session error:", sessionError)
-    redirect("/signin")
+  // If onboarding not completed, redirect to appropriate onboarding flow
+  if (!profile?.onboarding_completed) {
+    redirect(
+      `/onboarding/${profile?.user_type === "brand" ? "brand" : "creator"}`
+    )
   }
 
-  const userType = session.user.user_metadata.user_type
-
-  // Check if brand user has completed onboarding
-  if (userType === "brand") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("id", session.user.id)
+  // For brands, get campaigns with submissions
+  if (profile?.user_type === "brand") {
+    const { data: brand } = await supabase
+      .from("brands")
+      .select("id")
+      .eq("user_id", session.user.id)
       .single()
 
-    if (!profile?.onboarding_completed) {
-      redirect("/onboarding/brand/profile")
+    if (!brand) {
+      console.error("Brand not found for user:", session.user.id)
+      throw new Error("Brand not found")
     }
-  }
 
-  console.log("userType 12", userType)
-
-  if (userType === "creator") {
-    // Get all available campaigns with brand data and existing submissions
-    const { data: campaigns, error: campaignsError } = await supabase
+    const { data: campaigns, error } = await supabase
       .from("campaigns")
       .select(
         `
         *,
-        brand:brands (
-          id,
-          user_id,
-          profiles (
-            organization_name
-          )
-        ),
         submissions (
           id,
-          status,
           video_url,
+          file_path,
+          transcription,
+          status,
           created_at,
-          creator_id
+          views,
+          profiles (
+            full_name,
+            email
+          )
         )
       `
       )
-      .eq("status", "active")
+      .eq("brand_id", brand.id)
       .order("created_at", { ascending: false })
 
-    if (campaignsError) {
-      console.error("Error fetching campaigns:", campaignsError)
-      return <div>Error loading campaigns</div>
+    if (error) {
+      console.error("Error fetching campaigns:", error)
+      throw error
     }
 
-    // Transform the data to match the expected format
-    const transformedCampaigns =
-      campaigns?.map((campaign) => ({
-        ...campaign,
-        brand: {
-          name: campaign.brand?.profiles?.organization_name || "Unnamed Brand",
-          logo_url: null, // We don't have logo URLs in the current schema
-        },
-        submission:
-          campaign.submissions?.find(
-            (sub: { creator_id: string }) => sub.creator_id === session.user.id
-          ) || null,
-      })) || []
-
-    console.log("transformedCampaigns 12", transformedCampaigns)
-    return (
-      <div className="min-h-screen bg-[#313338]">
-        <div className="border-b border-zinc-800 bg-[#2B2D31]">
-          <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-bold text-white">Creator Platform</h1>
-            <DashboardHeader userType={userType} />
-          </div>
-        </div>
-        <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
-      </div>
-    )
+    return <DashboardClient initialCampaigns={campaigns} brandId={brand.id} />
   }
 
-  // If we get here, user is a brand
-  const { data: brandData } = await supabase
-    .from("brands")
-    .select("id")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!brandData) {
-    return <div>Brand not found</div>
-  }
-
-  // Get campaigns for brand with submissions
-  const { data: campaigns } = await supabase
+  // For creators, get available campaigns
+  const { data: campaigns, error } = await supabase
     .from("campaigns")
     .select(
       `
       *,
-      submissions!left (
-        id,
-        video_url,
-        transcription,
-        creator_id,
-        status,
-        created_at,
-        views
-      ),
-      brand!left (
-        id,
-        user_id,
-        profiles (
+      brand:brands (
+        name:profiles!inner (
           organization_name
         )
+      ),
+      submission:submissions (
+        id,
+        status,
+        video_url,
+        file_path
       )
     `
     )
-    .eq("brand_id", brandData.id)
+    .eq("status", "active")
+    .eq("submissions.creator_id", session.user.id)
     .order("created_at", { ascending: false })
 
-  console.log("campaigns 13", campaigns)
+  if (error) {
+    console.error("Error fetching campaigns:", error)
+    throw error
+  }
 
-  // Transform the data to include the count of active submissions
-  const transformedCampaigns =
-    campaigns?.map((campaign) => ({
-      ...campaign,
-      activeSubmissionsCount:
-        campaign.submissions?.filter(
-          (sub: { status: string }) => sub.status === "active"
-        ).length || 0,
-    })) || []
+  // Transform the data to match the expected format
+  const transformedCampaigns = campaigns.map((campaign) => ({
+    ...campaign,
+    brand: {
+      name: campaign.brand?.name?.organization_name,
+    },
+    submission: campaign.submission?.[0] || null,
+  }))
 
-  return (
-    <div className="min-h-screen bg-[#313338]">
-      <div className="border-b border-zinc-800 bg-[#2B2D31]">
-        <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-white">Brand Platform</h1>
-          <DashboardHeader userType={userType} />
-        </div>
-      </div>
-      <DashboardClient
-        initialCampaigns={transformedCampaigns}
-        brandId={brandData.id}
-      />
-    </div>
-  )
+  return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
 }

@@ -1,16 +1,11 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getOptionalUser } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { SignUpForm } from "./form"
 
-export default async function SignUp() {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+export default async function SignUpPage() {
+  const { session } = await getOptionalUser()
 
-  // If logged in, redirect to dashboard
+  // If user is already signed in, redirect to dashboard
   if (session) {
     redirect("/dashboard")
   }

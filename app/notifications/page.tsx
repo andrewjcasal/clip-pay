@@ -1,5 +1,4 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { getAuthenticatedUser } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { NotificationsClient } from "./client"
 import { DashboardHeader } from "../dashboard/header"
@@ -7,24 +6,12 @@ import { DashboardHeader } from "../dashboard/header"
 export const dynamic = "force-dynamic"
 
 export default async function NotificationsPage() {
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const { session, supabase } = await getAuthenticatedUser()
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session?.user) {
-    redirect("/signin")
-  }
-
-  const userType = session.user.user_metadata.user_type
-
-  // Get unread notifications for the user
-  const { data: notifications } = await supabase
+  const { data: notifications, error: authError } = await supabase
     .from("notifications")
     .select("*")
-    .eq("recipient_id", session.user.id)
-    .eq("read", false)
+    .eq("user_id", session.user.id)
     .order("created_at", { ascending: false })
 
   return (
@@ -32,9 +19,11 @@ export default async function NotificationsPage() {
       <div className="border-b border-zinc-800 bg-[#2B2D31]">
         <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-4">
           <h1 className="text-xl font-bold text-white">
-            {userType === "brand" ? "Brand Platform" : "Creator Platform"}
+            {session.user.user_metadata.user_type === "brand"
+              ? "Brand Platform"
+              : "Creator Platform"}
           </h1>
-          <DashboardHeader userType={userType} />
+          <DashboardHeader userType={session.user.user_metadata.user_type} />
         </div>
       </div>
       <div className="max-w-7xl mx-auto p-4">
