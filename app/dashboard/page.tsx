@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { DashboardHeader } from "./header"
 
 export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export interface Campaign {
   id: string
@@ -57,9 +58,11 @@ export default async function Dashboard() {
       .single()
 
     if (!profile?.onboarding_completed) {
-      redirect("/onboarding/brand")
+      redirect("/onboarding/brand/profile")
     }
   }
+
+  console.log("userType 12", userType)
 
   if (userType === "creator") {
     // Get all available campaigns with brand data and existing submissions
@@ -106,6 +109,7 @@ export default async function Dashboard() {
           ) || null,
       })) || []
 
+    console.log("transformedCampaigns 12", transformedCampaigns)
     return (
       <div className="min-h-screen bg-[#313338]">
         <div className="border-b border-zinc-800 bg-[#2B2D31]">
@@ -143,16 +147,21 @@ export default async function Dashboard() {
         creator_id,
         status,
         created_at,
-        views,
+        views
+      ),
+      brand!left (
+        id,
+        user_id,
         profiles (
-          full_name,
-          email
+          organization_name
         )
       )
     `
     )
     .eq("brand_id", brandData.id)
     .order("created_at", { ascending: false })
+
+  console.log("campaigns 13", campaigns)
 
   // Transform the data to include the count of active submissions
   const transformedCampaigns =

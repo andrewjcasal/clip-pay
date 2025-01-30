@@ -1,14 +1,14 @@
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { BrandOnboardingClient } from "./client"
+import { Step2Form } from "./form"
 import Stripe from "stripe"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-01-27.acacia",
 })
 
-export default async function BrandOnboarding() {
+export default async function BrandOnboardingStep2() {
   const cookieStore = cookies()
   const supabase = createServerComponentClient({ cookies: () => cookieStore })
 
@@ -20,32 +20,52 @@ export default async function BrandOnboarding() {
     redirect("/signin")
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_name, stripe_customer_id")
-    .eq("id", session.user.id)
+  // Get brand record with organization name from profile
+  const { data: brand } = await supabase
+    .from("brands")
+    .select(
+      `
+      *,
+      profiles!inner (
+        organization_name
+      )
+    `
+    )
+    .eq("user_id", session.user.id)
     .single()
 
-  // If user already has an organization name, redirect to dashboard
-  if (profile?.organization_name) {
-    redirect("/dashboard")
+  // If user doesn't have an organization name, redirect to step 1
+  if (!brand?.profiles?.organization_name) {
+    redirect("/onboarding/brand/step1")
+  }
+
+  // If user already has a Stripe customer ID and has completed onboarding, redirect to dashboard
+  if (brand?.stripe_customer_id) {
+    const customer = await stripe.customers.retrieve(brand.stripe_customer_id)
+    if (
+      !("deleted" in customer) &&
+      customer.invoice_settings.default_payment_method
+    ) {
+      redirect("/dashboard")
+    }
   }
 
   let setupIntent
   try {
     // Create or get setup intent
-    if (!profile?.stripe_customer_id) {
+    if (!brand?.stripe_customer_id) {
       const customer = await stripe.customers.create({
         email: session.user.email,
         metadata: {
           user_id: session.user.id,
+          brand_id: brand.id,
         },
       })
 
       await supabase
-        .from("profiles")
+        .from("brands")
         .update({ stripe_customer_id: customer.id })
-        .eq("id", session.user.id)
+        .eq("id", brand.id)
 
       setupIntent = await stripe.setupIntents.create({
         customer: customer.id,
@@ -54,7 +74,7 @@ export default async function BrandOnboarding() {
     } else {
       // Existing customer - create new setup intent
       setupIntent = await stripe.setupIntents.create({
-        customer: profile.stripe_customer_id,
+        customer: brand.stripe_customer_id,
         payment_method_types: ["card"],
       })
     }
@@ -68,9 +88,11 @@ export default async function BrandOnboarding() {
   }
 
   return (
-    <BrandOnboardingClient
+    <Step2Form
       userEmail={session.user.email as string}
       clientSecret={setupIntent.client_secret}
+      userId={session.user.id}
+      brandId={brand.id}
     />
   )
 }

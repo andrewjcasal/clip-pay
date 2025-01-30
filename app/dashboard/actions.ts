@@ -112,4 +112,71 @@ export async function createCampaign({
 
   revalidatePath("/dashboard")
   return campaign
+}
+
+export async function submitVideo({
+  campaignId,
+  videoUrl,
+  file,
+}: {
+  campaignId: string
+  videoUrl?: string
+  file?: File
+}) {
+  const supabase = createServerActionClient({ cookies })
+
+  try {
+    // Get the current user's session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) throw sessionError
+    if (!session) throw new Error("No session found")
+
+    let filePath = null
+    let finalVideoUrl = videoUrl || null
+
+    if (file) {
+      // Upload video to Supabase Storage
+      const fileExt = file.name.split(".").pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from("videos")
+        .upload(fileName, file)
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError)
+        throw uploadError
+      }
+      filePath = fileName
+
+      // Get the public URL of the uploaded video
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("videos").getPublicUrl(fileName)
+      finalVideoUrl = publicUrl
+    }
+
+    // Create submission record
+    const { data: submission, error: submissionError } = await supabase
+      .from("submissions")
+      .insert({
+        campaign_id: campaignId,
+        creator_id: session.user.id,
+        video_url: finalVideoUrl,
+        file_path: filePath,
+        status: "active",
+      })
+      .select()
+      .single()
+
+    if (submissionError) {
+      console.error("Error creating submission:", submissionError)
+      throw submissionError
+    }
+
+    revalidatePath('/dashboard')
+    return submission
+  } catch (error) {
+    console.error("Error in video submission:", error)
+    throw error
+  }
 } 

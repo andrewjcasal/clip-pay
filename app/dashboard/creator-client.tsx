@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import { Upload } from "lucide-react"
-import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/input"
-import { Label } from "../../components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { submitVideo } from "./actions"
 
 interface Campaign {
   id: string
@@ -14,7 +15,7 @@ interface Campaign {
   guidelines: string
   status: string
   brand: {
-    organization_name: string
+    name: string
   }
   submission: {
     id: string
@@ -51,61 +52,22 @@ export function CreatorDashboardClient({
     setIsSubmitting(true)
 
     try {
-      let filePath = null
-      let videoUrl = null
-
-      if (file) {
-        // Upload video to Supabase Storage
-        const fileExt = file.name.split(".").pop()
-        const fileName = `${Math.random()}.${fileExt}`
-        const { error: uploadError } = await supabase.storage
-          .from("videos")
-          .upload(fileName, file)
-
-        if (uploadError) {
-          console.error("Upload error:", uploadError)
-          throw uploadError
-        }
-        filePath = fileName
-
-        // Get the public URL of the uploaded video
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("videos").getPublicUrl(fileName)
-        console.log("publicUrl", publicUrl)
-
-        videoUrl = publicUrl
-      }
-
-      // Submit to API for audio processing
-      const response = await fetch("/api/submissions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          campaign_id: selectedCampaign.id,
-          video_url: videoUrl,
-          file_path: filePath,
-        }),
+      const submission = await submitVideo({
+        campaignId: selectedCampaign.id,
+        videoUrl: videoUrl || undefined,
+        file: file || undefined,
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message)
-      }
-
       // Update the campaigns list to show submitted status
-      const submissionData = await response.json()
       const updatedCampaigns = initialCampaigns.map((campaign) =>
         campaign.id === selectedCampaign.id
           ? {
               ...campaign,
-              submission: submissionData,
+              submission,
             }
           : campaign
       )
-      setSelectedCampaign({ ...selectedCampaign, submission: submissionData })
+      setSelectedCampaign({ ...selectedCampaign, submission })
       setInitialCampaigns(updatedCampaigns)
 
       setFile(null)
@@ -235,6 +197,8 @@ export function CreatorDashboardClient({
     )
   }
 
+  console.log("selectedCampaign ab", selectedCampaign)
+
   return (
     <div className="min-h-screen bg-[#313338]">
       {/* Remove the Top Nav */}
@@ -271,32 +235,39 @@ export function CreatorDashboardClient({
             </h2>
           </div>
           <div className="space-y-2">
-            {initialCampaigns.map((campaign) => (
-              <div
-                key={campaign.id}
-                onClick={() => setSelectedCampaign(campaign)}
-                className={`p-3 rounded-md cursor-pointer transition-colors ${
-                  selectedCampaign?.id === campaign.id
-                    ? "bg-[#404249]"
-                    : "hover:bg-[#35373C]"
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-white font-medium">{campaign.title}</h3>
-                    {campaign.submission && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-500">
-                        Submitted
-                      </span>
-                    )}
+            {initialCampaigns.map((campaign) => {
+              console.log("dby", campaign)
+              return (
+                <div
+                  key={campaign.id}
+                  onClick={() => setSelectedCampaign(campaign)}
+                  className={`p-3 rounded-md cursor-pointer transition-colors ${
+                    selectedCampaign?.id === campaign.id
+                      ? "bg-[#404249]"
+                      : "hover:bg-[#35373C]"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-white font-medium">
+                        {campaign.title}
+                      </h3>
+                      {campaign.submission && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-500">
+                          Submitted
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-zinc-400">
+                      by {campaign.brand?.name || "Unknown Brand"}
+                    </p>
+                    <p className="text-sm text-zinc-400">
+                      RPM: ${campaign.rpm}
+                    </p>
                   </div>
-                  <p className="text-sm text-zinc-400">
-                    by {campaign.brand?.organization_name || "Unknown Brand"}
-                  </p>
-                  <p className="text-sm text-zinc-400">RPM: ${campaign.rpm}</p>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
         <div className="w-[70%] bg-[#2B2D31] rounded-lg p-4">
@@ -333,9 +304,7 @@ export function CreatorDashboardClient({
                     {selectedCampaign.title}
                   </h2>
                   <p className="text-zinc-400">
-                    by{" "}
-                    {selectedCampaign.brand?.organization_name ||
-                      "Unknown Brand"}
+                    by {selectedCampaign.brand?.name || "Unknown Brand"}
                   </p>
                   <div className="flex gap-4 text-sm text-zinc-400">
                     <span>Pool: ${selectedCampaign.budget_pool}</span>

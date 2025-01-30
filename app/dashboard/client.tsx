@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/accordion"
 import { approveSubmission, rejectSubmission, createCampaign } from "./actions"
 import { useRouter } from "next/navigation"
+import { X } from "lucide-react"
 
 interface Submission {
   id: string
@@ -76,7 +77,16 @@ export function DashboardClient({
         brandId,
       })
 
-      setCampaigns([newCampaignData, ...campaigns])
+      // Update local state with the new campaign
+      setCampaigns((prevCampaigns) => [
+        {
+          ...newCampaignData,
+          submissions: [],
+          activeSubmissionsCount: 0,
+        },
+        ...prevCampaigns,
+      ])
+
       setShowNewCampaign(false)
       setNewCampaign({
         title: "",
@@ -86,6 +96,8 @@ export function DashboardClient({
         video_outline: "",
       })
       setShowSuccessDialog(true)
+
+      // Force a server refresh to ensure data consistency
       router.refresh()
     } catch (error) {
       console.error("Failed to create campaign:", error)
@@ -137,6 +149,23 @@ export function DashboardClient({
       console.error("Error rejecting submission:", error)
     }
   }
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedCampaign(null)
+      }
+    }
+
+    if (selectedCampaign) {
+      document.addEventListener("keydown", handleEscape)
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [selectedCampaign])
 
   return (
     <div className="min-h-screen bg-[#313338]">
@@ -224,76 +253,17 @@ export function DashboardClient({
                 <Button
                   variant="outline"
                   onClick={() => setSelectedCampaign(campaign)}
+                  className="bg-[#1E1F22] text-white hover:bg-[#2B2D31] hover:text-white border-zinc-700"
                 >
                   View Details
                 </Button>
               </div>
 
-              {campaign.submissions?.length > 0 && (
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="submissions">
-                    <AccordionTrigger className="text-zinc-400">
-                      {campaign.submissions.length} Submissions
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 pt-4">
-                        {campaign.submissions.map((submission) => (
-                          <div
-                            key={submission.id}
-                            className="bg-[#313338] rounded p-4 flex justify-between items-center"
-                          >
-                            <div>
-                              <p className="text-sm text-white">
-                                {submission.profiles?.full_name || "Anonymous"}
-                              </p>
-                              <p className="text-xs text-zinc-400">
-                                Submitted{" "}
-                                {formatDistanceToNow(
-                                  new Date(submission.created_at),
-                                  { addSuffix: true }
-                                )}
-                              </p>
-                            </div>
-                            <div className="flex gap-2">
-                              {submission.status === "active" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApprove(submission.id)}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleReject(submission.id)}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                              {submission.status === "approved" && (
-                                <span className="text-green-400 text-sm">
-                                  Approved
-                                </span>
-                              )}
-                              {submission.status === "rejected" && (
-                                <span className="text-red-400 text-sm">
-                                  Rejected
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              )}
-
               <div className="text-sm text-zinc-400">
                 <p className="font-medium mb-2">Guidelines:</p>
-                <p className="whitespace-pre-wrap">{campaign.guidelines}</p>
+                <p className="whitespace-pre-wrap line-clamp-2">
+                  {campaign.guidelines}
+                </p>
               </div>
             </div>
           ))}
@@ -392,6 +362,168 @@ export function DashboardClient({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Overlay */}
+      {selectedCampaign && (
+        <div
+          className="fixed inset-0 bg-black/50 transition-opacity"
+          onClick={() => setSelectedCampaign(null)}
+        />
+      )}
+
+      {/* Campaign Details Slide-in */}
+      <div
+        className={`fixed inset-y-0 right-0 w-[600px] bg-[#2B2D31] transform transition-transform duration-300 ease-in-out ${
+          selectedCampaign ? "translate-x-0" : "translate-x-full"
+        } shadow-xl z-50`}
+      >
+        {selectedCampaign && (
+          <div
+            className="h-full flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-zinc-700">
+              <h2 className="text-xl font-semibold text-white">
+                Campaign Details
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedCampaign(null)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-semibold text-white">
+                    {selectedCampaign.title}
+                  </h3>
+                  <div className="flex gap-4 mt-2 text-sm text-zinc-400">
+                    <span>
+                      Budget: $
+                      {Number(selectedCampaign.budget_pool).toLocaleString()}
+                    </span>
+                    <span>RPM: ${selectedCampaign.rpm}</span>
+                    <span
+                      className={`capitalize ${
+                        selectedCampaign.status === "active"
+                          ? "text-green-400"
+                          : "text-yellow-400"
+                      }`}
+                    >
+                      {selectedCampaign.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-lg font-medium text-white">Guidelines</h4>
+                  <p className="text-zinc-400 whitespace-pre-wrap">
+                    {selectedCampaign.guidelines}
+                  </p>
+                </div>
+
+                {selectedCampaign.video_outline && (
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-medium text-white">
+                      Video Outline
+                    </h4>
+                    <p className="text-zinc-400 whitespace-pre-wrap">
+                      {selectedCampaign.video_outline}
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h4 className="text-lg font-medium text-white">
+                    Submissions ({selectedCampaign.submissions?.length || 0})
+                  </h4>
+                  <div className="space-y-4">
+                    {selectedCampaign.submissions?.map((submission) => (
+                      <div
+                        key={submission.id}
+                        className="bg-[#1E1F22] rounded-lg p-4 space-y-3"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm text-white">
+                              {submission.profiles?.full_name || "Anonymous"}
+                            </p>
+                            <p className="text-xs text-zinc-400">
+                              Submitted{" "}
+                              {formatDistanceToNow(
+                                new Date(submission.created_at),
+                                { addSuffix: true }
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {submission.status === "active" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(submission.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleReject(submission.id)}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {submission.status === "approved" && (
+                              <span className="text-green-400 text-sm">
+                                Approved
+                              </span>
+                            )}
+                            {submission.status === "rejected" && (
+                              <span className="text-red-400 text-sm">
+                                Rejected
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {submission.video_url && (
+                          <div className="aspect-video rounded-md overflow-hidden bg-black">
+                            <ReactPlayer
+                              url={submission.video_url}
+                              width="100%"
+                              height="100%"
+                              controls
+                            />
+                          </div>
+                        )}
+                        {submission.transcription && (
+                          <div className="text-sm text-zinc-400">
+                            <p className="font-medium mb-1">Transcription:</p>
+                            <p className="line-clamp-3">
+                              {submission.transcription}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {!selectedCampaign.submissions?.length && (
+                      <p className="text-zinc-400 text-center py-4">
+                        No submissions yet
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

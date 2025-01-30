@@ -3,8 +3,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Card,
   CardContent,
@@ -25,13 +23,22 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 )
 
-interface BrandOnboardingClientProps {
+interface Step2FormProps {
   userEmail: string
   clientSecret: string
+  userId: string
+  brandId: string
 }
 
-function OnboardingForm({ userEmail }: { userEmail: string }) {
-  const [organizationName, setOrganizationName] = useState("")
+function PaymentForm({
+  userEmail,
+  userId,
+  brandId,
+}: {
+  userEmail: string
+  userId: string
+  brandId: string
+}) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -49,12 +56,6 @@ function OnboardingForm({ userEmail }: { userEmail: string }) {
         throw new Error("Stripe not loaded")
       }
 
-      // Get current user first to ensure we have the ID
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not found")
-
       // Confirm the setup
       const result = await stripe.confirmSetup({
         elements,
@@ -65,23 +66,41 @@ function OnboardingForm({ userEmail }: { userEmail: string }) {
 
       if (result.error) throw result.error
 
-      // Update profile
+      // Update profile to mark onboarding as completed
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
-          organization_name: organizationName,
           onboarding_completed: true,
         })
-        .eq("id", user.id)
+        .eq("id", userId)
 
       if (updateError) throw updateError
 
       router.push("/dashboard")
     } catch (error) {
-      console.error("Error in brand onboarding:", error)
+      console.error("Error in brand onboarding step 2:", error)
       setError(error instanceof Error ? error.message : "Something went wrong")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSkip = async () => {
+    try {
+      // Update profile to mark onboarding as completed
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          onboarding_completed: true,
+        })
+        .eq("id", userId)
+
+      if (updateError) throw updateError
+
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error skipping payment setup:", error)
+      setError(error instanceof Error ? error.message : "Something went wrong")
     }
   }
 
@@ -92,69 +111,76 @@ function OnboardingForm({ userEmail }: { userEmail: string }) {
           {error}
         </div>
       )}
-      <div className="space-y-2">
-        <Label htmlFor="organizationName" className="text-zinc-300">
-          Organization Name
-        </Label>
-        <Input
-          id="organizationName"
-          value={organizationName}
-          onChange={(e) => setOrganizationName(e.target.value)}
-          className="border-0 bg-[#1E1F22] text-white focus:ring-2 focus:ring-[#5865F2]"
-          placeholder="Enter your organization name"
-          required
-        />
+
+      <div className="text-sm text-zinc-400 space-y-4">
+        <p>
+          Add a payment method to verify your brand and start working with
+          creators. Your card will only be charged when you approve a creator's
+          submission.
+        </p>
       </div>
 
       <PaymentElement />
 
-      <Button
-        type="submit"
-        className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
-        disabled={isLoading}
-      >
-        {isLoading ? "Setting up..." : "Complete Setup"}
-      </Button>
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleSkip}
+          className="flex-1"
+        >
+          Skip for Now
+        </Button>
+        <Button
+          type="submit"
+          className="flex-1 bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
+          disabled={isLoading}
+        >
+          {isLoading ? "Setting up..." : "Complete Setup"}
+        </Button>
+      </div>
     </form>
   )
 }
 
-export function BrandOnboardingClient({
+export function Step2Form({
   userEmail,
   clientSecret,
-}: BrandOnboardingClientProps) {
+  userId,
+  brandId,
+}: Step2FormProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
       <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight">
-            Complete Your Profile
+            Add Payment Method
           </CardTitle>
           <CardDescription className="text-zinc-400">
-            Tell us about your organization
+            Verify your brand and start working with creators
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {clientSecret ? (
-            <Elements
-              stripe={stripePromise}
-              options={{
-                clientSecret,
-                appearance: {
-                  theme: "night",
-                  variables: {
-                    colorPrimary: "#5865F2",
-                    colorBackground: "#1E1F22",
-                    colorText: "#FFFFFF",
-                  },
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret,
+              appearance: {
+                theme: "night",
+                variables: {
+                  colorPrimary: "#5865F2",
+                  colorBackground: "#1E1F22",
+                  colorText: "#FFFFFF",
                 },
-              }}
-            >
-              <OnboardingForm userEmail={userEmail} />
-            </Elements>
-          ) : (
-            <div>Loading...</div>
-          )}
+              },
+            }}
+          >
+            <PaymentForm
+              userEmail={userEmail}
+              userId={userId}
+              brandId={brandId}
+            />
+          </Elements>
         </CardContent>
       </Card>
     </div>

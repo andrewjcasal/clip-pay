@@ -49,7 +49,7 @@ export default function SignInForm() {
         if (userType === "creator") {
           router.replace("/dashboard")
         } else if (userType === "brand") {
-          router.replace("/onboarding")
+          router.replace("/onboarding/brand/profile")
         }
       }
     } catch (error) {

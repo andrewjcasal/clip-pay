@@ -2,11 +2,77 @@
 
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  BarChart2,
+  Wallet,
+  Users,
+  Calendar,
+  LineChart,
+  Zap,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export const LandingContent = () => {
   const router = useRouter()
+
+  // Brand logos from reputable tech companies (replace with actual brand partners later)
+  const brandLogos = [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/603px-Amazon_logo.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/500px-Google_2015_logo.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Netflix_2015_logo.svg/500px-Netflix_2015_logo.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Instagram_logo_2016.svg/132px-Instagram_logo_2016.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/2021_Facebook_icon.svg/150px-2021_Facebook_icon.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Logo_of_Twitter.svg/292px-Logo_of_Twitter.svg.png",
+  ]
+
+  // Creator profile images from diverse stock photos
+  const creatorImages = [
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&h=150&fit=crop",
+    "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=150&h=150&fit=crop",
+  ]
+
+  const features = [
+    {
+      title: "Campaign Management",
+      description:
+        "Track and manage all your brand collaborations in one place",
+      icon: <LayoutDashboard className="w-6 h-6 text-[#5034FF]" />,
+    },
+    {
+      title: "Performance Analytics",
+      description:
+        "Real-time insights into your content's performance and earnings",
+      icon: <BarChart2 className="w-6 h-6 text-[#5034FF]" />,
+    },
+    {
+      title: "Automated Payments",
+      description:
+        "Get paid automatically when your content hits the agreed metrics",
+      icon: <Wallet className="w-6 h-6 text-[#5034FF]" />,
+    },
+    {
+      title: "Brand Matching",
+      description: "AI-powered matching with brands that fit your audience",
+      icon: <Users className="w-6 h-6 text-[#5034FF]" />,
+    },
+    {
+      title: "Content Calendar",
+      description: "Plan and schedule your branded content efficiently",
+      icon: <Calendar className="w-6 h-6 text-[#5034FF]" />,
+    },
+    {
+      title: "Engagement Tracking",
+      description: "Monitor how your audience interacts with sponsored content",
+      icon: <LineChart className="w-6 h-6 text-[#5034FF]" />,
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-white">
@@ -15,38 +81,43 @@ export const LandingContent = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-2">
-              <Image
-                src="/placeholder.svg?height=32&width=32"
-                alt="ClipPay Logo"
-                width={32}
-                height={32}
-              />
-              <span className="text-xl font-semibold">ClipPay</span>
+              <Zap className="w-8 h-8 text-[#5034FF]" />
+              <span className="text-xl font-bold text-gray-900">ClipPay</span>
             </div>
-            <div className="hidden md:flex items-center space-x-6">
-              <button className="flex items-center text-gray-600 hover:text-gray-900">
+            <div className="hidden lg:flex items-center space-x-6">
+              <button className="flex items-center text-gray-700 hover:text-gray-900 font-medium">
                 Products <ChevronDown className="ml-1 h-4 w-4" />
               </button>
-              <button className="flex items-center text-gray-600 hover:text-gray-900">
+              <button className="flex items-center text-gray-700 hover:text-gray-900 font-medium">
                 Solutions <ChevronDown className="ml-1 h-4 w-4" />
               </button>
-              <button className="flex items-center text-gray-600 hover:text-gray-900">
+              <button className="flex items-center text-gray-700 hover:text-gray-900 font-medium">
                 Resources <ChevronDown className="ml-1 h-4 w-4" />
               </button>
-              <a href="#pricing" className="text-gray-600 hover:text-gray-900">
+              <a
+                href="#pricing"
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
                 Pricing
               </a>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => router.push("/signin")}>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/signin")}
+              className="text-gray-700 hover:text-gray-900"
+            >
               Log in
             </Button>
-            <Button variant="outline" className="hidden md:inline-flex">
+            <Button
+              variant="outline"
+              className="hidden lg:inline-flex border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900"
+            >
               Contact sales
             </Button>
             <Button
-              className="bg-[#5034FF] hover:bg-[#3A1DFF]"
+              className="bg-[#5034FF] hover:bg-[#3A1DFF] text-white whitespace-nowrap"
               onClick={() => router.push("/signup")}
             >
               Get Started <ChevronRight className="ml-2 h-4 w-4" />
@@ -56,36 +127,42 @@ export const LandingContent = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-[#F5F5FF] py-20">
-        <div className="container mx-auto px-4 text-center max-w-4xl">
+      <section className="bg-[#F5F5FF] py-20 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <Image
+            src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=800&fit=crop"
+            alt="Background"
+            fill
+            className="object-cover"
+            priority
+          />
+        </div>
+        <div className="container mx-auto px-4 text-center max-w-4xl relative">
           <div className="flex justify-center mb-6">
-            <div className="flex items-center px-4 py-1 bg-white rounded-full">
-              <Image
-                src="/placeholder.svg?height=24&width=24"
-                alt="ClipPay Icon"
-                width={24}
-                height={24}
-              />
-              <span className="ml-2 text-sm font-medium">creator platform</span>
+            <div className="flex items-center px-4 py-1 bg-white rounded-full shadow-sm">
+              <Zap className="w-6 h-6 text-[#5034FF]" />
+              <span className="ml-2 text-sm font-medium text-gray-900">
+                creator platform
+              </span>
             </div>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-gray-900 mb-6 tracking-tight">
             Made for creators,
             <br />
             designed to convert
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
             Connect with top brands and monetize your content through
             performance-based campaigns. Track your success and scale your
             influence.
           </p>
           <Button
-            className="bg-[#5034FF] hover:bg-[#3A1DFF] h-12 px-8 text-lg"
+            className="bg-[#5034FF] hover:bg-[#3A1DFF] h-12 px-8 text-lg text-white shadow-lg"
             onClick={() => router.push("/signup")}
           >
             Get Started <ChevronRight className="ml-2 h-5 w-5" />
           </Button>
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-gray-600 font-medium">
             No credit card needed • Unlimited time on Free plan
           </p>
         </div>
@@ -97,17 +174,17 @@ export const LandingContent = () => {
           <div className="grid md:grid-cols-2 gap-16">
             {/* Brands Side */}
             <div>
-              <h2 className="text-2xl font-semibold mb-8 text-center">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-8 text-center">
                 Trusted by Leading Brands
               </h2>
               <div className="grid grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => (
+                {brandLogos.map((src, i) => (
                   <div
                     key={`brand-${i}`}
                     className="flex items-center justify-center"
                   >
                     <Image
-                      src="/placeholder.svg?height=60&width=120"
+                      src={src}
                       alt={`Brand ${i + 1}`}
                       width={120}
                       height={60}
@@ -117,37 +194,41 @@ export const LandingContent = () => {
                 ))}
               </div>
               <div className="mt-8 text-center">
-                <p className="text-lg font-medium text-gray-900 mb-2">$10M+</p>
-                <p className="text-sm text-gray-600">Paid to creators</p>
+                <p className="text-2xl font-bold text-gray-900 mb-2">$10M+</p>
+                <p className="text-sm text-gray-700 font-medium">
+                  Paid to creators
+                </p>
               </div>
             </div>
 
             {/* Creators Side */}
             <div>
-              <h2 className="text-2xl font-semibold mb-8 text-center">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-8 text-center">
                 Top Performing Creators
               </h2>
               <div className="grid grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => (
+                {creatorImages.map((src, i) => (
                   <div
                     key={`creator-${i}`}
                     className="flex items-center justify-center"
                   >
-                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-gray-100 overflow-hidden shadow-md">
                       <Image
-                        src="/placeholder.svg?height=80&width=80"
+                        src={src}
                         alt={`Creator ${i + 1}`}
                         width={80}
                         height={80}
-                        className="rounded-full"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   </div>
                 ))}
               </div>
               <div className="mt-8 text-center">
-                <p className="text-lg font-medium text-gray-900 mb-2">1M+</p>
-                <p className="text-sm text-gray-600">Views generated</p>
+                <p className="text-2xl font-bold text-gray-900 mb-2">1M+</p>
+                <p className="text-sm text-gray-700 font-medium">
+                  Views generated
+                </p>
               </div>
             </div>
           </div>
@@ -157,45 +238,24 @@ export const LandingContent = () => {
       {/* Features Grid */}
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
             Everything you need to succeed
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Campaign Management",
-                description:
-                  "Track and manage all your brand collaborations in one place",
-              },
-              {
-                title: "Performance Analytics",
-                description:
-                  "Real-time insights into your content's performance and earnings",
-              },
-              {
-                title: "Automated Payments",
-                description:
-                  "Get paid automatically when your content hits the agreed metrics",
-              },
-              {
-                title: "Brand Matching",
-                description:
-                  "AI-powered matching with brands that fit your audience",
-              },
-              {
-                title: "Content Calendar",
-                description:
-                  "Plan and schedule your branded content efficiently",
-              },
-              {
-                title: "Engagement Tracking",
-                description:
-                  "Monitor how your audience interacts with sponsored content",
-              },
-            ].map((feature, i) => (
-              <div key={i} className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+            {features.map((feature, i) => (
+              <div
+                key={i}
+                className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="mr-3 p-2 bg-[#5034FF]/10 rounded-lg">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {feature.title}
+                  </h3>
+                </div>
+                <p className="text-gray-700">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -203,17 +263,17 @@ export const LandingContent = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-20 bg-[#5034FF]">
         <div className="container mx-auto px-4 text-center max-w-3xl">
-          <h2 className="text-4xl font-bold mb-6">
+          <h2 className="text-4xl font-bold mb-6 text-white">
             Ready to grow your influence?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-xl text-white/90 mb-8">
             Join thousands of creators who are building their business with
             ClipPay
           </p>
           <Button
-            className="bg-[#5034FF] hover:bg-[#3A1DFF] h-12 px-8 text-lg"
+            className="bg-white hover:bg-gray-50 h-12 px-8 text-lg text-[#5034FF] shadow-lg"
             onClick={() => router.push("/signup")}
           >
             Start Creating <ChevronRight className="ml-2 h-5 w-5" />
@@ -227,24 +287,13 @@ export const LandingContent = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <Image
-                  src="/placeholder.svg?height=24&width=24"
-                  alt="ClipPay Logo"
-                  width={24}
-                  height={24}
-                />
-                <span className="font-semibold">ClipPay</span>
+                <Zap className="w-6 h-6 text-[#5034FF]" />
+                <span className="font-bold text-gray-900">ClipPay</span>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-700">
                 The leading platform for creator monetization
               </p>
             </div>
-            {/* ... rest of the footer columns ... */}
-          </div>
-          <div className="mt-12 pt-8 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center">
-              © 2024 ClipPay. All rights reserved.
-            </p>
           </div>
         </div>
       </footer>
