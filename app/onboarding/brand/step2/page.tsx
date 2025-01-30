@@ -89,10 +89,8 @@ export default async function BrandOnboardingStep2() {
 
   return (
     <Step2Form
-      userEmail={session.user.email as string}
       clientSecret={setupIntent.client_secret}
       userId={session.user.id}
-      brandId={brand.id}
     />
   )
 }
