@@ -21,6 +21,7 @@ import { X } from "lucide-react"
 interface Submission {
   id: string
   video_url: string
+  file_path: string | null
   transcription: string
   creator_id: string
   status: string
