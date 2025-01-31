@@ -1,7 +1,7 @@
 "use server"
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"
 
@@ -35,34 +35,12 @@ export async function createServerSupabaseClient() {
 export async function getAuthenticatedUser() {
   const supabase = await createServerSupabaseClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/signin")
   }
 
-  return { session, supabase }
+  return { user, supabase }
 }
-
-export async function getOptionalUser() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  return { session, supabase }
-}
-
-export async function getAuthenticatedRoute() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    return new NextResponse("Unauthorized", { status: 401 })
-  }
-
-  return { session, supabase }
-} 

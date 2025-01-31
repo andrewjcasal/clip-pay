@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { Campaign } from "./page"
+import { Campaign, CampaignWithSubmissions } from "./page"
 
 interface Submission {
   id: string
@@ -21,27 +21,29 @@ export interface CampaignWithSubmissions extends Campaign {
   activeSubmissionsCount: number
 }
 
-export const getBrandCampaigns = async () => {
+export const getBrandCampaigns = async (): Promise<
+  CampaignWithSubmissions[]
+> => {
   const supabase = await createServerSupabaseClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
-    throw new Error("No session found")
+  if (!user) {
+    throw new Error("No user found")
   }
 
   // First get the brand ID and profile
   const { data: brand } = await supabase
     .from("brands")
     .select("id")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .single()
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("name:organization_name")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   if (!profile || !brand) {
@@ -80,25 +82,20 @@ export const getBrandCampaigns = async () => {
   return campaigns.map((campaign: any) => ({
     id: campaign.id,
     title: campaign.title,
-    budget_pool: campaign.budget_pool,
-    rpm: campaign.rpm,
+    budget_pool: String(campaign.budget_pool),
+    rpm: String(campaign.rpm),
     guidelines: campaign.guidelines,
-    video_outline: campaign.video_outline,
     status: campaign.status,
-    brand_id: campaign.brand_id,
-    created_at: campaign.created_at,
     brand: {
       name: profile.name,
     },
+    submission: null,
     submissions: (campaign.submissions || []).map((submission: any) => ({
       id: submission.id,
       video_url: submission.video_url || "",
       file_path: submission.file_path,
-      transcription: submission.transcription || "",
-      creator_id: submission.creator_id,
       status: submission.status,
-      created_at: submission.created_at,
-      views: submission.views,
+      campaign_id: campaign.id,
       creator: {
         full_name: submission.creator?.full_name || "",
         email: submission.creator?.email || "",

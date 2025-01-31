@@ -1,4 +1,4 @@
-import { getAuthenticatedRoute } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 import { Deepgram } from "@deepgram/sdk"
 import { spawn } from "child_process"
@@ -18,11 +18,14 @@ export const config = {
 
 export async function POST(req: Request) {
   try {
-    const authResult = await getAuthenticatedRoute()
-    if (authResult instanceof NextResponse) {
-      return authResult // Return the unauthorized response
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
-    const { session, supabase } = authResult
 
     const { campaign_id, video_url, file_path } = await req.json()
 
@@ -35,7 +38,7 @@ export async function POST(req: Request) {
       .from("submissions")
       .insert({
         campaign_id,
-        creator_id: session.user.id,
+        creator_id: user.id,
         video_url,
         file_path,
         status: "active",

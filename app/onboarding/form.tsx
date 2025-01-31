@@ -191,17 +191,17 @@ export async function getServerSideProps() {
   const supabase = await createServerSupabaseClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/signin")
   }
 
   return {
     props: {
       accountType: "brand" as const,
-      userEmail: session.user.email || "",
+      userEmail: user.email || "",
     },
   }
 }

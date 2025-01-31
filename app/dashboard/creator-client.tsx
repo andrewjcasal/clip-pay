@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Upload, Bell, Settings } from "lucide-react"
+import { Upload, Bell, Settings, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,7 +15,6 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { RealtimeChannel } from "@supabase/supabase-js"
 import Link from "next/link"
 
 interface Campaign {
@@ -28,24 +27,17 @@ interface Campaign {
   brand: {
     name: string
   }
-  submission: null
+  submission: {
+    id: string
+    status: string
+    video_url: string | null
+    file_path: string | null
+    campaign_id: string
+  } | null
 }
 
 interface CreatorDashboardClientProps {
   transformedCampaigns: Campaign[]
-}
-
-// Add interface for the Supabase response
-interface CampaignResponse {
-  id: string
-  title: string
-  budget_pool: number
-  rpm: number
-  guidelines: string
-  status: string
-  brands: {
-    name: string
-  }
 }
 
 export function CreatorDashboardClient({
@@ -65,6 +57,7 @@ export function CreatorDashboardClient({
   )
   const [isDragging, setIsDragging] = useState(false)
   const [showNewCampaignBanner, setShowNewCampaignBanner] = useState(false)
+  const [copiedCampaign, setCopiedCampaign] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -199,6 +192,45 @@ export function CreatorDashboardClient({
     } catch (error) {
       console.error("Error logging out:", error)
       toast.error("Failed to log out")
+    }
+  }
+
+  const handleCopy = (text: string, campaignId: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedCampaign(campaignId)
+    setTimeout(() => setCopiedCampaign(""), 2000)
+  }
+
+  const handleShare = async (campaignId: string) => {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Get user's referral code
+    const { data: referralData } = await supabase
+      .from("referrals")
+      .select("code")
+      .eq("profile_id", user.id)
+      .single()
+
+    const shareUrl = `${window.location.origin}/signup?ref=${referralData?.code}&campaign=${campaignId}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Join Creator Platform",
+          text: "Check out this campaign opportunity!",
+          url: shareUrl,
+        })
+      } catch (err) {
+        // If share fails or user cancels, fall back to copying the link
+        handleCopy(shareUrl, campaignId)
+      }
+    } else {
+      // If Web Share API is not available, copy the link
+      handleCopy(shareUrl, campaignId)
     }
   }
 
@@ -492,18 +524,14 @@ export function CreatorDashboardClient({
                     </button>
                   )}
                   {campaigns.map((campaign) => (
-                    <div
+                    <button
                       key={campaign.id}
                       onClick={() => setSelectedCampaign(campaign)}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedCampaign?.id === campaign.id
-                          ? "bg-black/40 border border-zinc-700/50"
-                          : "hover:bg-black/30 border border-transparent hover:border-zinc-800/50"
-                      }`}
+                      className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-colors group"
                     >
                       <div className="space-y-1">
                         <div className="flex justify-between items-start">
-                          <h3 className="text-white font-medium">
+                          <h3 className="text-white font-medium group-hover:text-[#5865F2] transition-colors">
                             {campaign.title}
                           </h3>
                           {campaign.submission && (
@@ -515,11 +543,14 @@ export function CreatorDashboardClient({
                         <p className="text-sm text-zinc-400">
                           by {campaign.brand?.name || "Unknown Brand"}
                         </p>
-                        <p className="text-sm text-zinc-400">
-                          RPM: ${campaign.rpm}
-                        </p>
                       </div>
-                    </div>
+
+                      <div className="mt-4">
+                        <div className="text-zinc-400">
+                          RPM: ${campaign.rpm}
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               </>
@@ -546,6 +577,47 @@ export function CreatorDashboardClient({
                     <p className="text-zinc-400">
                       by {selectedCampaign.brand?.name || "Unknown Brand"}
                     </p>
+                  </div>
+
+                  <div className="absolute top-6 right-6">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="text-zinc-400 hover:text-white transition-colors">
+                          <Share className="w-5 h-5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-72 bg-[#2B2D31] border-zinc-800"
+                      >
+                        <DropdownMenuItem
+                          className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
+                          onClick={() =>
+                            handleCopy(
+                              `${window.location.origin}/campaigns/${selectedCampaign.id}`,
+                              selectedCampaign.id
+                            )
+                          }
+                        >
+                          <span className="text-sm">
+                            Copy public campaign link
+                          </span>
+                          {copiedCampaign === selectedCampaign.id && (
+                            <span className="text-xs text-zinc-400">
+                              Copied!
+                            </span>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-white focus:bg-[#5865F2] cursor-pointer"
+                          onClick={() => handleShare(selectedCampaign.id)}
+                        >
+                          <span className="text-sm">
+                            Share with referral code
+                          </span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   <div className="flex gap-4">

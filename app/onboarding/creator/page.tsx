@@ -40,16 +40,16 @@ export default async function CreatorOnboarding() {
 
       accountLink = await stripe.accountLinks.create({
         account: account.id,
-        refresh_url: `${process.env.NEXT_PUBLIC_SITE_URL}/onboarding/creator`,
-        return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
+        refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/creator`,
+        return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
         type: "account_onboarding",
       })
     } else {
       // Get existing account link
       accountLink = await stripe.accountLinks.create({
         account: profile.stripe_account_id,
-        refresh_url: `${process.env.NEXT_PUBLIC_SITE_URL}/onboarding/creator`,
-        return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
+        refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/creator`,
+        return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
         type: "account_onboarding",
       })
     }

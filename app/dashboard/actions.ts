@@ -1,23 +1,25 @@
 "use server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
+import { Campaign } from "./page"
+import { writeFile, readFile } from "fs/promises"
+import { exec } from "child_process"
+import { promisify } from "util"
+import { join } from "path"
+import { unlink } from "fs/promises"
+import { Deepgram } from "@deepgram/sdk"
 
-type BrandProfile = {
-  brand: {
-    user_id: string
-    profiles: {
-      organization_name: string
-    }
-  }
+const execAsync = promisify(exec)
+
+// Ensure DEEPGRAM_API_KEY is available
+const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY
+if (!DEEPGRAM_API_KEY) {
+  throw new Error("DEEPGRAM_API_KEY is not set in environment variables")
 }
 
-type Campaign = {
-  id: string
-  title: string
-  budget_pool: string
-  rpm: string
-  guidelines: string
-  status: string
+const deepgram = new Deepgram(DEEPGRAM_API_KEY)
+
+type BrandProfile = {
   brand: {
     user_id: string
     profiles: {
@@ -100,6 +102,7 @@ export async function createCampaign({
   rpm,
   guidelines,
   video_outline,
+  referral_bonus_rate,
   brandId,
 }: {
   title: string
@@ -107,10 +110,13 @@ export async function createCampaign({
   rpm: string
   guidelines: string
   video_outline: string
+  referral_bonus_rate: string
   brandId: string
 }) {
   const supabase = await createServerSupabaseClient()
-  const session = await supabase.auth.getSession()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const { data } = await supabase
     .from("profiles")
@@ -123,7 +129,7 @@ export async function createCampaign({
     )
   `
     )
-    .eq("id", session.data.session?.user.id)
+    .eq("id", user?.id)
     .single()
 
   if (!data?.brands?.id) {
@@ -138,6 +144,7 @@ export async function createCampaign({
       rpm,
       guidelines,
       video_outline,
+      referral_bonus_rate,
       brand_id: data.brands.id,
       status: "active",
     })
@@ -151,6 +158,48 @@ export async function createCampaign({
 
   revalidatePath("/dashboard")
   return campaign
+}
+
+async function processVideo(
+  videoPath: string,
+  userId: string
+): Promise<{ audioPath: string; transcription: string }> {
+  try {
+    // Create unique names for the audio file
+    const audioFileName = `${userId}_${Date.now()}.mp3`
+    const audioPath = join("/tmp", audioFileName)
+
+    // Extract audio using ffmpeg
+    await execAsync(`ffmpeg -i "${videoPath}" -q:a 0 -map a "${audioPath}"`)
+
+    // Read the audio file
+    const audioFile = await readFile(audioPath)
+
+    // Transcribe using Deepgram
+    const response = await deepgram.transcription.preRecorded(
+      { buffer: audioFile, mimetype: "audio/mp3" },
+      {
+        smart_format: true,
+        punctuate: true,
+        utterances: true,
+      }
+    )
+
+    if (!response.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
+      throw new Error("Failed to get transcription from Deepgram")
+    }
+
+    // Clean up the audio file
+    await unlink(audioPath)
+
+    return {
+      audioPath,
+      transcription: response.results.channels[0].alternatives[0].transcript,
+    }
+  } catch (error) {
+    console.error("Error processing video:", error)
+    throw new Error("Failed to process video")
+  }
 }
 
 export async function submitVideo({
@@ -173,13 +222,6 @@ export async function submitVideo({
       throw new Error("Not authenticated")
     }
 
-    // Debug: Check raw profiles table
-    const { data: rawProfile, error: rawProfileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single()
-
     // Get the creator's profile
     const { data: profile } = await supabase
       .from("creator_profiles")
@@ -191,20 +233,13 @@ export async function submitVideo({
       throw new Error("Creator profile not found")
     }
 
-    // Debug: Check if user has correct profile type
+    // Ensure user is a creator type
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("user_type")
       .eq("id", user.id)
       .single()
 
-    // Debug: Try a direct RLS test
-    const { data: rlsTest, error: rlsTestError } = await supabase
-      .from("submissions")
-      .select()
-      .limit(1)
-
-    // Ensure user is a creator type
     if (userProfile?.user_type !== "creator") {
       const { error: updateError } = await supabase
         .from("profiles")
@@ -216,35 +251,32 @@ export async function submitVideo({
       }
     }
 
-    // Debug: Check if user has a creator record
-    const { data: creatorRecord, error: creatorError } = await supabase
-      .from("creators")
-      .select("*")
-      .eq("user_id", user.id)
-      .single()
-
-    if (!creatorRecord) {
-      // If no creator record exists, create one
-      const { data: newCreator, error: insertError } = await supabase
-        .from("creators")
-        .insert({ user_id: user.id })
-        .select()
-        .single()
-
-      if (insertError) {
-        throw new Error("Failed to create creator record")
-      }
-    }
-
     let finalVideoUrl = videoUrl
+    let filePath = null
+    let transcription = null
 
-    // If a file was provided, upload it to Supabase Storage
+    // If a file was provided, process it
     if (file) {
+      // First save the file temporarily
+      const tempVideoPath = join(
+        "/tmp",
+        `${user.id}_${Date.now()}_${file.name}`
+      )
+      await writeFile(tempVideoPath, Buffer.from(await file.arrayBuffer()))
+
+      // Process the video to extract audio and get transcription
+      const processedData = await processVideo(tempVideoPath, user.id)
+      transcription = processedData.transcription
+
+      // Clean up the temporary video file
+      await unlink(tempVideoPath)
+
+      // Upload the original video to Supabase Storage
       const fileExt = file.name.split(".").pop()
       const fileName = `${Math.random().toString(36).slice(2)}_${Date.now()}.${fileExt}`
-      const filePath = `${user.id}/${fileName}`
+      filePath = `${user.id}/${fileName}`
 
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("videos")
         .upload(filePath, file)
 
@@ -260,20 +292,22 @@ export async function submitVideo({
       finalVideoUrl = publicUrl
     }
 
-    // Create the submission record
-    const { data: submission, error } = await supabase
+    // Create the submission with transcription
+    const { data: submission, error: submissionError } = await supabase
       .from("submissions")
       .insert({
         campaign_id: campaignId,
         creator_id: user.id,
         video_url: finalVideoUrl,
-        status: "active",
+        file_path: filePath,
+        transcription,
+        status: "pending",
       })
       .select()
       .single()
 
-    if (error) {
-      throw error
+    if (submissionError) {
+      throw submissionError
     }
 
     revalidatePath("/dashboard")
@@ -284,44 +318,48 @@ export async function submitVideo({
   }
 }
 
-export async function getCreatorCampaigns() {
+export async function getCreatorCampaigns(): Promise<Campaign[]> {
   const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   const { data: campaigns } = await supabase
     .from("campaigns")
     .select(
       `
-      id,
-      title,
-      budget_pool,
-      rpm,
-      guidelines,
-      status,
+      *,
       brand:brands!inner (
-        user_id,
-        profiles (
+        id,
+        brand_profile:profiles!inner (
           organization_name
         )
+      ),
+      submission:submissions!left (
+        id,
+        status,
+        video_url,
+        file_path,
+        campaign_id
       )
     `
     )
     .eq("status", "active")
+    .eq("submissions.creator_id", user?.id)
     .order("created_at", { ascending: false })
-    .returns<Campaign[]>()
 
   if (!campaigns) return []
 
-  // Transform the campaigns data
   return campaigns.map((campaign) => ({
     id: campaign.id,
     title: campaign.title,
-    budget_pool: campaign.budget_pool,
-    rpm: campaign.rpm,
+    budget_pool: String(campaign.budget_pool),
+    rpm: String(campaign.rpm),
     guidelines: campaign.guidelines,
     status: campaign.status,
     brand: {
-      name: campaign.brand?.profiles?.organization_name || "Unknown Brand",
+      name: campaign.brand?.brand_profile?.organization_name || "Unknown Brand",
     },
-    submission: null,
+    submission: campaign.submission?.[0] || null,
   }))
 }

@@ -13,10 +13,10 @@ interface CreatorCampaign extends Campaign {
 export const getCreatorCampaigns = async () => {
   const supabase = await createServerSupabaseClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     throw new Error("User not authenticated")
   }
 
@@ -39,7 +39,7 @@ export const getCreatorCampaigns = async () => {
       `
     )
     .eq("status", "active")
-    .eq("submissions.creator_id", session.user.id)
+    .eq("submissions.creator_id", user.id)
     .order("created_at", { ascending: false })
 
   if (error) {

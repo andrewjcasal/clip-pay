@@ -9,26 +9,37 @@ export interface Brand {
   name: string
 }
 
+export interface Submission {
+  id: string
+  status: string
+  video_url: string | null
+  file_path: string | null
+  campaign_id: string
+}
+
 export interface Campaign {
   id: string
   title: string
-  budget_pool: number
-  rpm: number
+  budget_pool: string
+  rpm: string
   guidelines: string
-  video_outline: string | null
   status: string
-  brand_id: string
-  created_at: string
   brand: Brand
+  submission: Submission | null
+}
+
+export interface CampaignWithSubmissions extends Campaign {
+  submissions: Submission[]
+  activeSubmissionsCount: number
 }
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/signin")
   }
 
@@ -36,7 +47,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, user_type, organization_name, onboarding_completed")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   // If onboarding not completed, redirect to appropriate onboarding flow
@@ -59,19 +70,5 @@ export default async function DashboardPage() {
 
   // For creators, get available campaigns
   const transformedCampaigns = await getCreatorCampaigns()
-
-  return (
-    <CreatorDashboardClient
-      transformedCampaigns={transformedCampaigns.map((campaign) => ({
-        id: campaign.id,
-        title: campaign.title,
-        budget_pool: String(campaign.budget_pool),
-        rpm: String(campaign.rpm),
-        guidelines: campaign.guidelines,
-        status: campaign.status,
-        brand: campaign.brand,
-        submission: null,
-      }))}
-    />
-  )
+  return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
 }

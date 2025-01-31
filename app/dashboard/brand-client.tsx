@@ -52,6 +52,15 @@ interface DashboardClientProps {
   brandId: string
 }
 
+interface NewCampaign {
+  title: string
+  budget_pool: string
+  rpm: string
+  guidelines: string
+  video_outline: string
+  referral_bonus_rate: string
+}
+
 export function DashboardClient({
   initialCampaigns,
   brandId,
@@ -61,12 +70,13 @@ export function DashboardClient({
   const [showNewCampaign, setShowNewCampaign] = useState(false)
   const [selectedCampaign, setSelectedCampaign] =
     useState<CampaignWithSubmissions | null>(null)
-  const [newCampaign, setNewCampaign] = useState({
+  const [newCampaign, setNewCampaign] = useState<NewCampaign>({
     title: "",
     budget_pool: "",
     rpm: "",
     guidelines: "",
     video_outline: "",
+    referral_bonus_rate: "10",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
@@ -181,6 +191,7 @@ export function DashboardClient({
         rpm: "",
         guidelines: "",
         video_outline: "",
+        referral_bonus_rate: "10",
       })
       setShowSuccessDialog(true)
 
@@ -489,20 +500,52 @@ export function DashboardClient({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="rpm" className="text-zinc-300">
-                RPM (Rate per 1000 views)
-              </Label>
-              <Input
-                id="rpm"
-                value={newCampaign.rpm}
-                onChange={(e) =>
-                  setNewCampaign({ ...newCampaign, rpm: e.target.value })
-                }
-                className="border-0 bg-[#1E1F22] text-white"
-                placeholder="Enter RPM"
-                type="number"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rpm" className="text-zinc-300">
+                  RPM (Rate per 1000 views)
+                </Label>
+                <Input
+                  id="rpm"
+                  value={newCampaign.rpm}
+                  onChange={(e) =>
+                    setNewCampaign({ ...newCampaign, rpm: e.target.value })
+                  }
+                  className="border-0 bg-[#1E1F22] text-white"
+                  placeholder="Enter RPM"
+                  type="number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="referral_bonus_rate" className="text-zinc-300">
+                  Referral Bonus Rate (%)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="referral_bonus_rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="Enter referral bonus rate"
+                    value={newCampaign.referral_bonus_rate}
+                    onChange={(e) =>
+                      setNewCampaign({
+                        ...newCampaign,
+                        referral_bonus_rate: e.target.value,
+                      })
+                    }
+                    className="border-0 bg-[#1E1F22] text-white pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Percentage of RPM that referrers earn as bonus when their
+                  referred creators submit content
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">

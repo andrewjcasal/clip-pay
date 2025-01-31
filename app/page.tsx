@@ -5,11 +5,11 @@ import { LandingContent } from "./content"
 export default async function LandingPage() {
   const supabase = await createServerSupabaseClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // If logged in, redirect to dashboard
-  if (session) {
+  if (user) {
     redirect("/dashboard")
   }
 

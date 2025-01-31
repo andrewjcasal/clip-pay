@@ -23,9 +23,9 @@ export async function signIn(formData: FormData) {
 
     // Get session to check if sign in was successful
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
       throw new Error("Failed to get session after sign in")
     }
 
@@ -33,13 +33,13 @@ export async function signIn(formData: FormData) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single()
 
     // Redirect based on onboarding status
     if (!profile?.onboarding_completed) {
       redirect(
-        `/onboarding/${session.user.user_metadata.user_type === "brand" ? "brand/profile" : "creator/profile"}`
+        `/onboarding/${user.user_metadata.user_type === "brand" ? "brand/profile" : "creator/profile"}`
       )
     }
 

@@ -1,13 +1,16 @@
-import { getAuthenticatedRoute } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
-    const authResult = await getAuthenticatedRoute()
-    if (authResult instanceof NextResponse) {
-      return authResult
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
-    const { session, supabase } = authResult
 
     // Get the request body
     const { organizationName } = await request.json()
@@ -23,7 +26,7 @@ export async function POST(request: Request) {
         organization_name: organizationName,
         onboarding_completed: true,
       })
-      .eq("id", session.user.id)
+      .eq("id", user.id)
 
     if (updateError) {
       console.error("Error updating profile:", updateError)
