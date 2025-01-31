@@ -1,12 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { PublicCampaignView } from "./public-view"
 
-interface PageProps {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
-}
-
-export default async function PublicCampaignPage({ params }: PageProps) {
+export default async function PublicCampaignPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const id = (await params).id
   const supabase = await createServerSupabaseClient()
 
   const { data: campaign, error } = await supabase
@@ -22,7 +22,7 @@ export default async function PublicCampaignPage({ params }: PageProps) {
       )
     `
     )
-    .eq("id", params.id)
+    .eq("id", id)
     .single()
 
   if (error) {
