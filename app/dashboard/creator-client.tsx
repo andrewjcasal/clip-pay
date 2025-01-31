@@ -21,19 +21,14 @@ import Link from "next/link"
 interface Campaign {
   id: string
   title: string
-  budget_pool: number
-  rpm: number
+  budget_pool: string
+  rpm: string
   guidelines: string
   status: string
   brand: {
     name: string
   }
-  submission: {
-    id: string
-    status: string
-    video_url: string | null
-    file_path: string | null
-  } | null
+  submission: null
 }
 
 interface CreatorDashboardClientProps {
@@ -557,7 +552,7 @@ export function CreatorDashboardClient({
                     <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-3 rounded-lg">
                       <p className="text-sm text-zinc-400">Budget Pool</p>
                       <p className="text-lg font-semibold text-white">
-                        ${selectedCampaign.budget_pool.toLocaleString()}
+                        ${selectedCampaign.budget_pool}
                       </p>
                     </div>
                     <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-3 rounded-lg">

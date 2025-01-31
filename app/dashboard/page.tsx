@@ -60,5 +60,18 @@ export default async function DashboardPage() {
   // For creators, get available campaigns
   const transformedCampaigns = await getCreatorCampaigns()
 
-  return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
+  return (
+    <CreatorDashboardClient
+      transformedCampaigns={transformedCampaigns.map((campaign) => ({
+        id: campaign.id,
+        title: campaign.title,
+        budget_pool: String(campaign.budget_pool),
+        rpm: String(campaign.rpm),
+        guidelines: campaign.guidelines,
+        status: campaign.status,
+        brand: campaign.brand,
+        submission: null,
+      }))}
+    />
+  )
 }
