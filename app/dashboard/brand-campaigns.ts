@@ -10,7 +10,7 @@ interface Submission {
   status: string
   created_at: string
   views: number
-  profiles: {
+  creator: {
     full_name: string
     email: string
   }
@@ -99,7 +99,7 @@ export const getBrandCampaigns = async () => {
       status: submission.status,
       created_at: submission.created_at,
       views: submission.views,
-      profiles: {
+      creator: {
         full_name: submission.creator?.full_name || "",
         email: submission.creator?.email || "",
       },

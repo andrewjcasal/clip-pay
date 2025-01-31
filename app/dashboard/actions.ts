@@ -2,6 +2,30 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
 
+type BrandProfile = {
+  brand: {
+    user_id: string
+    profiles: {
+      organization_name: string
+    }
+  }
+}
+
+type Campaign = {
+  id: string
+  title: string
+  budget_pool: string
+  rpm: string
+  guidelines: string
+  status: string
+  brand: {
+    user_id: string
+    profiles: {
+      organization_name: string
+    }
+  }
+}
+
 export async function approveSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()
 
@@ -273,9 +297,9 @@ export async function getCreatorCampaigns() {
       rpm,
       guidelines,
       status,
-      brand:brands (
+      brand:brands!inner (
         user_id,
-        brand_profile:profiles (
+        profiles (
           organization_name
         )
       )
@@ -283,6 +307,7 @@ export async function getCreatorCampaigns() {
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
+    .returns<Campaign[]>()
 
   if (!campaigns) return []
 
@@ -295,7 +320,7 @@ export async function getCreatorCampaigns() {
     guidelines: campaign.guidelines,
     status: campaign.status,
     brand: {
-      name: campaign.brand?.brand_profile?.organization_name || "Unknown Brand",
+      name: campaign.brand?.profiles?.organization_name || "Unknown Brand",
     },
     submission: null,
   }))

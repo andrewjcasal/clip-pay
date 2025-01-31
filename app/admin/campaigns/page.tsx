@@ -1,5 +1,20 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 
+type Campaign = {
+  id: string
+  title: string
+  status: string
+  budget_pool: number
+  rpm: number
+  submissions?: any[]
+  brands: {
+    id: string
+    profiles: {
+      organization_name: string
+    }
+  }
+}
+
 export default async function CampaignsPage() {
   const supabase = await createServerSupabaseClient()
 
@@ -24,6 +39,7 @@ export default async function CampaignsPage() {
       )
     `
     )
+    .returns<Campaign[]>()
     .order("created_at", { ascending: false })
 
   if (!campaigns || campaigns.length === 0) {

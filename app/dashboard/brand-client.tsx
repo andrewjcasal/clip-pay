@@ -36,7 +36,7 @@ interface Submission {
   status: string
   created_at: string
   views: number
-  profiles: {
+  creator: {
     full_name: string
     email: string
   }
@@ -117,7 +117,24 @@ export function DashboardClient({
               campaign.id === latestSubmission.campaign_id
                 ? {
                     ...campaign,
-                    submissions: [latestSubmission, ...campaign.submissions],
+                    submissions: [
+                      {
+                        id: latestSubmission.id,
+                        video_url: latestSubmission.video_url || "",
+                        file_path: latestSubmission.file_path,
+                        transcription: latestSubmission.transcription || "",
+                        creator_id: latestSubmission.creator_id,
+                        status: latestSubmission.status,
+                        created_at: latestSubmission.created_at,
+                        views: latestSubmission.views,
+                        creator: {
+                          full_name:
+                            latestSubmission.creator?.[0]?.full_name || "",
+                          email: latestSubmission.creator?.[0]?.email || "",
+                        },
+                      } as Submission,
+                      ...campaign.submissions,
+                    ],
                   }
                 : campaign
             )
@@ -657,7 +674,7 @@ export function DashboardClient({
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm text-white">
-                              {submission.profiles?.full_name || "Anonymous"}
+                              {submission.creator.full_name || "Anonymous"}
                             </p>
                             <p className="text-xs text-zinc-400">
                               Submitted{" "}
