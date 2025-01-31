@@ -1,4 +1,4 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { AdminNav } from "./components/admin-nav"
 
@@ -7,13 +7,20 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/signin")
+  }
 
   // Check if user is admin
   const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   if (!profile?.is_admin) {

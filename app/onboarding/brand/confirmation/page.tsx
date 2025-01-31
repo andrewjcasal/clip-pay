@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation"
-import { getAuthenticatedUser } from "@/lib/supabase-server"
 import { completeOnboardingWithPayment } from "@/app/actions/brand"
 import { ConfirmationForm } from "./form"
 

@@ -1,4 +1,4 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { CreatorOnboardingForm } from "./form"
 import Stripe from "stripe"
@@ -8,12 +8,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export default async function CreatorOnboarding() {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/signin")
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("organization_name, stripe_account_id")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single()
 
   // If user already has completed onboarding, redirect to dashboard
@@ -27,16 +34,16 @@ export default async function CreatorOnboarding() {
     if (!profile?.stripe_account_id) {
       const account = await stripe.accounts.create({
         type: "express",
-        email: session.user.email,
+        email: user.email,
         metadata: {
-          user_id: session.user.id,
+          user_id: user.id,
         },
       })
 
       await supabase
         .from("profiles")
         .update({ stripe_account_id: account.id })
-        .eq("id", session.user.id)
+        .eq("id", user.id)
 
       accountLink = await stripe.accountLinks.create({
         account: account.id,

@@ -1,7 +1,15 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
+import { redirect } from "next/navigation"
 
 export default async function AdminCreatorsPage() {
-  const { supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/signin")
+  }
 
   const { data: creators, error } = await supabase
     .from("profiles")

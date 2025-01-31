@@ -1,11 +1,17 @@
 "use server"
 
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
 
 export async function updateBrandProfile(organizationName: string) {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "User not found" }
+  }
 
   try {
     // Update profile with organization name
@@ -14,7 +20,7 @@ export async function updateBrandProfile(organizationName: string) {
       .update({
         organization_name: organizationName,
       })
-      .eq("id", session.user.id)
+      .eq("id", user.id)
 
     if (updateError) throw updateError
 
@@ -31,7 +37,14 @@ export async function updateBrandProfile(organizationName: string) {
 }
 
 export async function completeOnboardingWithPayment(setupIntentId: string) {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "User not found" }
+  }
 
   try {
     // Update profile to mark as brand and complete onboarding
@@ -41,7 +54,7 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
         onboarding_completed: true,
         user_type: "brand",
       })
-      .eq("id", session.user.id)
+      .eq("id", user.id)
 
     if (updateError) throw updateError
 
@@ -53,7 +66,7 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
         payment_verified: true,
         updated_at: new Date().toISOString(),
       })
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
 
     if (brandError) throw brandError
 
@@ -71,7 +84,14 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
 }
 
 export async function skipPaymentSetup() {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "User not found" }
+  }
 
   try {
     // First update profile to mark as brand
@@ -81,7 +101,7 @@ export async function skipPaymentSetup() {
         onboarding_completed: true,
         user_type: "brand",
       })
-      .eq("id", session.user.id)
+      .eq("id", user.id)
 
     if (profileError) throw profileError
 
@@ -92,7 +112,7 @@ export async function skipPaymentSetup() {
         payment_verified: false,
         updated_at: new Date().toISOString(),
       })
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
     if (brandError) throw brandError
 
     revalidatePath("/onboarding/brand/step2")

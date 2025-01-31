@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { updateBrandProfile } from "@/app/actions/brand"
 
-export function Step1Form({ userId }: { userId: string }) {
+export function Step1Form() {
   const [organizationName, setOrganizationName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -31,15 +31,3 @@ export async function createServerSupabaseClient() {
   )
 }
 
-export async function getAuthenticatedUser() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/signin")
-  }
-
-  return { user, supabase }
-}

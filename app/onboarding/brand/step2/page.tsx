@@ -1,4 +1,4 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { Step2Form } from "./form"
 import Stripe from "stripe"
@@ -8,7 +8,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export default async function BrandOnboardingStep2() {
-  const { session, supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/signin")
+  }
 
   // Get brand record with organization name from profile
   const { data: brand } = await supabase
@@ -21,7 +29,7 @@ export default async function BrandOnboardingStep2() {
       )
     `
     )
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .single()
 
   // If user doesn't have an organization name, redirect to step 1
@@ -45,9 +53,9 @@ export default async function BrandOnboardingStep2() {
     // Create or get setup intent
     if (!brand?.stripe_customer_id) {
       const customer = await stripe.customers.create({
-        email: session.user.email,
+        email: user.email,
         metadata: {
-          user_id: session.user.id,
+          user_id: user.id,
           brand_id: brand.id,
         },
       })
@@ -77,10 +85,5 @@ export default async function BrandOnboardingStep2() {
     throw new Error("Failed to create setup intent")
   }
 
-  return (
-    <Step2Form
-      clientSecret={setupIntent.client_secret}
-      userId={session.user.id}
-    />
-  )
+  return <Step2Form clientSecret={setupIntent.client_secret} />
 }

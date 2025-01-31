@@ -1,7 +1,7 @@
-import { getAuthenticatedUser } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 
 export default async function AdminBrandsPage() {
-  const { supabase } = await getAuthenticatedUser()
+  const supabase = await createServerSupabaseClient()
 
   const { data: brands, error } = await supabase
     .from("brands")
