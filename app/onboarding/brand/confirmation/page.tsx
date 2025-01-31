@@ -3,11 +3,10 @@ import { getAuthenticatedUser } from "@/lib/supabase-server"
 import { completeOnboardingWithPayment } from "@/app/actions/brand"
 import { ConfirmationForm } from "./form"
 
-export default async function BrandOnboardingConfirmation({
-  searchParams,
-}: {
-  searchParams: { setup_intent: string }
+export default async function BrandOnboardingConfirmation(props: {
+  searchParams: Promise<{ setup_intent: string }>
 }) {
+  const searchParams = await props.searchParams
   const { setup_intent } = await searchParams // searchParams should be awaited
 
   // If no setup_intent in URL, redirect to step 2

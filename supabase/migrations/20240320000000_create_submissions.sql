@@ -53,4 +53,4 @@ create policy "Admins can view all submissions"
 
 -- Create updated_at trigger
 create trigger handle_updated_at before update on public.submissions
-  for each row execute procedure moddatetime('updated_at'); 
+  for each row execute procedure public.handle_updated_at();

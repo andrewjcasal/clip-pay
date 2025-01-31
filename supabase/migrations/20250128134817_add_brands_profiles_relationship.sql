@@ -26,12 +26,5 @@ BEGIN
     END IF;
 END $$;
 
--- If we get here, all profiles exist, so add the foreign key
-ALTER TABLE "public"."brands"
-ADD CONSTRAINT "brands_user_id_fkey"
-FOREIGN KEY ("user_id")
-REFERENCES "public"."profiles"("id")
-ON DELETE CASCADE;
-
 -- Add index for better query performance
 CREATE INDEX IF NOT EXISTS "brands_user_id_idx" ON "public"."brands" ("user_id");

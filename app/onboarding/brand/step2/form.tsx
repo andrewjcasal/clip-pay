@@ -17,10 +17,7 @@ import {
   Elements,
 } from "@stripe/react-stripe-js"
 import { loadStripe, type SetupIntent } from "@stripe/stripe-js"
-import {
-  completeOnboardingWithPayment,
-  skipPaymentSetup,
-} from "@/app/actions/brand"
+import { skipPaymentSetup } from "@/app/actions/brand"
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -40,7 +37,6 @@ function PaymentForm({ userId }: { userId: string }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("handleSubmit")
     setIsLoading(true)
     setError(null)
 
@@ -53,7 +49,7 @@ function PaymentForm({ userId }: { userId: string }) {
       const result = await stripe.confirmSetup({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/dashboard`,
+          return_url: `${window.location.origin}/onboarding/brand/confirmation`,
         },
       })
     } catch (err) {

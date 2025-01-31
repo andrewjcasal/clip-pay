@@ -34,28 +34,29 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
   const { session, supabase } = await getAuthenticatedUser()
 
   try {
-    console.log("here D", session.user.id)
-    // Update profile to mark onboarding as completed
+    // Update profile to mark as brand and complete onboarding
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
         onboarding_completed: true,
+        user_type: "brand",
       })
       .eq("id", session.user.id)
 
     if (updateError) throw updateError
 
-    // Store the setupIntentId for future reference
-    const { error: brandError } = await supabase.from("brands").upsert({
-      user_id: session.user.id,
-      setup_intent_id: setupIntentId,
-      payment_verified: true,
-      updated_at: new Date().toISOString(),
-    })
+    // Store the setupIntentId and mark as verified
+    const { error: brandError } = await supabase
+      .from("brands")
+      .update({
+        setup_intent_id: setupIntentId,
+        payment_verified: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", session.user.id)
 
     if (brandError) throw brandError
 
-    revalidatePath("/onboarding/brand/step2")
     return { success: true }
   } catch (error) {
     console.error("Error completing onboarding with payment:", error)
@@ -73,23 +74,25 @@ export async function skipPaymentSetup() {
   const { session, supabase } = await getAuthenticatedUser()
 
   try {
-    // Update profile to mark onboarding as completed but payment not verified
-    const { error: updateError } = await supabase
+    // First update profile to mark as brand
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({
         onboarding_completed: true,
-        payment_verified: false,
+        user_type: "brand",
       })
       .eq("id", session.user.id)
 
-    if (updateError) throw updateError
+    if (profileError) throw profileError
 
-    // Update brand record
-    const { error: brandError } = await supabase.from("brands").upsert({
-      user_id: session.user.id,
-      updated_at: new Date().toISOString(),
-    })
-
+    // Then create/update brand record
+    const { error: brandError } = await supabase
+      .from("brands")
+      .update({
+        payment_verified: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", session.user.id)
     if (brandError) throw brandError
 
     revalidatePath("/onboarding/brand/step2")

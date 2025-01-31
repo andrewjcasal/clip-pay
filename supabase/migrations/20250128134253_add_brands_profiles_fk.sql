@@ -1,3 +1,7 @@
+-- First, drop existing constraint if it exists
+ALTER TABLE "public"."brands"
+DROP CONSTRAINT IF EXISTS "brands_user_id_fkey";
+
 -- First, create missing profile records for existing brands
 INSERT INTO "public"."profiles" (id, user_type, onboarding_completed, created_at, updated_at)
 SELECT 

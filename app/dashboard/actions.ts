@@ -1,11 +1,11 @@
 "use server"
-
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
+import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 
 export async function approveSubmission(submissionId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const supabase = await createServerSupabaseClient()
 
   // Get payout duration from env (default to 7 days for production)
   const payoutDurationMinutes = Number(
@@ -35,7 +35,7 @@ export async function approveSubmission(submissionId: string) {
 }
 
 export async function rejectSubmission(submissionId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const supabase = await createServerSupabaseClient()
 
   // Try a simpler select first to verify the submission
   const { error: checkError } = await supabase
@@ -87,7 +87,26 @@ export async function createCampaign({
   video_outline: string
   brandId: string
 }) {
-  const supabase = createServerActionClient({ cookies })
+  const supabase = await createServerSupabaseClient()
+  const session = await supabase.auth.getSession()
+
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      `
+    *,
+    brands (
+      id,
+      payment_verified
+    )
+  `
+    )
+    .eq("id", session.data.session?.user.id)
+    .single()
+
+  if (!data?.brands?.id) {
+    throw new Error("Brand not found")
+  }
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -97,7 +116,7 @@ export async function createCampaign({
       rpm,
       guidelines,
       video_outline,
-      brand_id: brandId,
+      brand_id: data.brands.id,
       status: "active",
     })
     .select()
@@ -121,63 +140,165 @@ export async function submitVideo({
   videoUrl?: string
   file?: File
 }) {
-  const supabase = createServerActionClient({ cookies })
+  const supabase = await createServerSupabaseClient()
 
   try {
-    // Get the current user's session
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
-    if (sessionError) throw sessionError
-    if (!session) throw new Error("No session found")
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    let filePath = null
-    let finalVideoUrl = videoUrl || null
+    if (!user) {
+      throw new Error("Not authenticated")
+    }
 
+    // Debug: Check raw profiles table
+    const { data: rawProfile, error: rawProfileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+
+    // Get the creator's profile
+    const { data: profile } = await supabase
+      .from("creator_profiles")
+      .select()
+      .eq("user_id", user.id)
+      .single()
+
+    if (!profile) {
+      throw new Error("Creator profile not found")
+    }
+
+    // Debug: Check if user has correct profile type
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("user_type")
+      .eq("id", user.id)
+      .single()
+
+    // Debug: Try a direct RLS test
+    const { data: rlsTest, error: rlsTestError } = await supabase
+      .from("submissions")
+      .select()
+      .limit(1)
+
+    // Ensure user is a creator type
+    if (userProfile?.user_type !== "creator") {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ user_type: "creator" })
+        .eq("id", user.id)
+
+      if (updateError) {
+        throw new Error("Failed to update profile type")
+      }
+    }
+
+    // Debug: Check if user has a creator record
+    const { data: creatorRecord, error: creatorError } = await supabase
+      .from("creators")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!creatorRecord) {
+      // If no creator record exists, create one
+      const { data: newCreator, error: insertError } = await supabase
+        .from("creators")
+        .insert({ user_id: user.id })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw new Error("Failed to create creator record")
+      }
+    }
+
+    let finalVideoUrl = videoUrl
+
+    // If a file was provided, upload it to Supabase Storage
     if (file) {
-      // Upload video to Supabase Storage
       const fileExt = file.name.split(".").pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const { error: uploadError } = await supabase.storage
+      const fileName = `${Math.random().toString(36).slice(2)}_${Date.now()}.${fileExt}`
+      const filePath = `${user.id}/${fileName}`
+
+      const { error: uploadError, data } = await supabase.storage
         .from("videos")
-        .upload(fileName, file)
+        .upload(filePath, file)
 
       if (uploadError) {
-        console.error("Upload error:", uploadError)
         throw uploadError
       }
-      filePath = fileName
 
-      // Get the public URL of the uploaded video
+      // Get the public URL for the uploaded file
       const {
         data: { publicUrl },
-      } = supabase.storage.from("videos").getPublicUrl(fileName)
+      } = supabase.storage.from("videos").getPublicUrl(filePath)
+
       finalVideoUrl = publicUrl
     }
 
-    // Create submission record
-    const { data: submission, error: submissionError } = await supabase
+    // Create the submission record
+    const { data: submission, error } = await supabase
       .from("submissions")
       .insert({
         campaign_id: campaignId,
-        creator_id: session.user.id,
+        creator_id: user.id,
         video_url: finalVideoUrl,
-        file_path: filePath,
         status: "active",
       })
       .select()
       .single()
 
-    if (submissionError) {
-      console.error("Error creating submission:", submissionError)
-      throw submissionError
+    if (error) {
+      throw error
     }
 
     revalidatePath("/dashboard")
     return submission
   } catch (error) {
-    console.error("Error in video submission:", error)
+    console.error("Error in submitVideo:", error)
     throw error
   }
+}
+
+export async function getCreatorCampaigns() {
+  const supabase = await createServerSupabaseClient()
+
+  const { data: campaigns } = await supabase
+    .from("campaigns")
+    .select(
+      `
+      id,
+      title,
+      budget_pool,
+      rpm,
+      guidelines,
+      status,
+      brand:brands (
+        user_id,
+        brand_profile:profiles (
+          organization_name
+        )
+      )
+    `
+    )
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+
+  if (!campaigns) return []
+
+  // Transform the campaigns data
+  return campaigns.map((campaign) => ({
+    id: campaign.id,
+    title: campaign.title,
+    budget_pool: campaign.budget_pool,
+    rpm: campaign.rpm,
+    guidelines: campaign.guidelines,
+    status: campaign.status,
+    brand: {
+      name: campaign.brand?.brand_profile?.organization_name || "Unknown Brand",
+    },
+    submission: null,
+  }))
 }

@@ -6,8 +6,6 @@ export async function signIn(formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
 
-  console.log("email", email)
-  console.log("password", password)
   if (!email || !password) {
     throw new Error("Email and password are required")
   }

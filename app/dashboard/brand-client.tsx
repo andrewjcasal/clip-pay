@@ -16,7 +16,16 @@ import { formatDistanceToNow } from "date-fns"
 import ReactPlayer from "react-player"
 import { approveSubmission, rejectSubmission, createCampaign } from "./actions"
 import { useRouter } from "next/navigation"
-import { X } from "lucide-react"
+import { Bell, Settings, X } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { toast } from "sonner"
+import Link from "next/link"
 
 interface Submission {
   id: string
@@ -61,7 +70,73 @@ export function DashboardClient({
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [hasNewSubmission, setHasNewSubmission] = useState(false)
+  const [hasNewCampaigns, setHasNewCampaigns] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    // Poll for new submissions every minute
+    const pollInterval = setInterval(async () => {
+      const { data: newSubmissions } = await supabase
+        .from("submissions")
+        .select(
+          `
+          id,
+          video_url,
+          file_path,
+          transcription,
+          status,
+          created_at,
+          views,
+          creator_id,
+          campaign_id,
+          creator:creator_profiles (
+            full_name:organization_name,
+            email
+          )
+        `
+        )
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+
+      if (newSubmissions && newSubmissions.length > 0) {
+        const latestSubmission = newSubmissions[0]
+        // Check if this is a new submission we haven't seen
+        const isNewSubmission = campaigns.some(
+          (campaign) =>
+            campaign.id === latestSubmission.campaign_id &&
+            !campaign.submissions.some((s) => s.id === latestSubmission.id)
+        )
+
+        if (isNewSubmission) {
+          // Update the campaigns with the new submission
+          setCampaigns((currentCampaigns) =>
+            currentCampaigns.map((campaign) =>
+              campaign.id === latestSubmission.campaign_id
+                ? {
+                    ...campaign,
+                    submissions: [latestSubmission, ...campaign.submissions],
+                  }
+                : campaign
+            )
+          )
+          setHasNewSubmission(true)
+          toast.success("New submission received!", {
+            description:
+              "A creator has submitted a video to one of your campaigns.",
+            action: {
+              label: "Refresh",
+              onClick: () => window.location.reload(),
+            },
+          })
+        }
+      }
+    }, 60000) // Poll every minute
+
+    return () => clearInterval(pollInterval)
+  }, [campaigns, supabase])
 
   const handleCreateCampaign = async () => {
     try {
@@ -145,6 +220,17 @@ export function DashboardClient({
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      router.push("/signin")
+    } catch (error) {
+      console.error("Error logging out:", error)
+      toast.error("Failed to log out")
+    }
+  }
+
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -163,59 +249,136 @@ export function DashboardClient({
   }, [selectedCampaign])
 
   return (
-    <div className="min-h-screen bg-[#313338]">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e]">
+      {/* Header */}
+      <div className="border-b border-zinc-800 bg-black/20 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Brand Platform</h1>
+              <p className="text-sm text-zinc-400">
+                Manage your campaigns and creator submissions
+              </p>
+            </div>
+            <div className="flex items-center gap-6">
+              <a
+                href="/dashboard"
+                className="text-white hover:text-zinc-300 transition-colors"
+              >
+                Dashboard
+              </a>
+              <a
+                href="/campaigns"
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                Campaigns
+              </a>
+              <a
+                href="/submissions"
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                Submissions
+              </a>
+              <div className="flex items-center gap-4 ml-4 border-l border-zinc-800 pl-4">
+                {hasNewCampaigns && (
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    className="text-sm"
+                  >
+                    Refresh to see new campaign
+                  </Button>
+                )}
+                <Link href="/notifications">
+                  <Bell className="w-5 h-5 text-zinc-400 hover:text-white transition-colors" />
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-zinc-400 hover:text-white"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-40 bg-[#2B2D31] border-zinc-800"
+                  >
+                    <DropdownMenuItem
+                      className="text-white focus:bg-[#5865F2] cursor-pointer"
+                      onClick={handleLogout}
+                    >
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Metrics */}
-      <div className="grid grid-cols-4 gap-4 p-4">
-        <div className="bg-[#2B2D31] p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-zinc-400">Total Budget</h3>
-          <p className="text-2xl font-semibold text-white">
-            $
-            {campaigns
-              .reduce(
-                (total, campaign) => total + Number(campaign.budget_pool || 0),
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
+            <h3 className="text-sm font-medium text-zinc-400">Total Budget</h3>
+            <p className="text-2xl font-semibold text-white">
+              $
+              {campaigns
+                .reduce(
+                  (total, campaign) =>
+                    total + Number(campaign.budget_pool || 0),
+                  0
+                )
+                .toLocaleString()}
+            </p>
+          </div>
+          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
+            <h3 className="text-sm font-medium text-zinc-400">
+              Active Campaigns
+            </h3>
+            <p className="text-2xl font-semibold text-white">
+              {campaigns.filter((c) => c.status === "active").length}
+            </p>
+          </div>
+          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
+            <h3 className="text-sm font-medium text-zinc-400">
+              Total Submissions
+            </h3>
+            <p className="text-2xl font-semibold text-white">
+              {campaigns.reduce(
+                (total, campaign) =>
+                  total + (campaign.submissions?.length || 0),
                 0
-              )
-              .toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-[#2B2D31] p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-zinc-400">
-            Active Campaigns
-          </h3>
-          <p className="text-2xl font-semibold text-white">
-            {campaigns.filter((c) => c.status === "active").length}
-          </p>
-        </div>
-        <div className="bg-[#2B2D31] p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-zinc-400">
-            Total Submissions
-          </h3>
-          <p className="text-2xl font-semibold text-white">
-            {campaigns.reduce(
-              (total, campaign) => total + (campaign.submissions?.length || 0),
-              0
-            )}
-          </p>
-        </div>
-        <div className="bg-[#2B2D31] p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-zinc-400">Average RPM</h3>
-          <p className="text-2xl font-semibold text-white">
-            $
-            {(
-              campaigns.reduce(
-                (total, campaign) => total + Number(campaign.rpm || 0),
-                0
-              ) / (campaigns.length || 1)
-            ).toFixed(2)}
-          </p>
+              )}
+            </p>
+          </div>
+          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
+            <h3 className="text-sm font-medium text-zinc-400">Average RPM</h3>
+            <p className="text-2xl font-semibold text-white">
+              $
+              {(
+                campaigns.reduce(
+                  (total, campaign) => total + Number(campaign.rpm || 0),
+                  0
+                ) / (campaigns.length || 1)
+              ).toFixed(2)}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Campaigns List */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 pb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-white">Campaigns</h2>
-          <Button onClick={() => setShowNewCampaign(true)}>
+          <Button
+            onClick={() => setShowNewCampaign(true)}
+            className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+          >
             Create New Campaign
           </Button>
         </div>
@@ -224,7 +387,7 @@ export function DashboardClient({
           {campaigns.map((campaign) => (
             <div
               key={campaign.id}
-              className="bg-[#2B2D31] rounded-lg p-6 space-y-4"
+              className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6 space-y-4 hover:border-zinc-700/50 transition-colors"
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -248,7 +411,7 @@ export function DashboardClient({
                 <Button
                   variant="outline"
                   onClick={() => setSelectedCampaign(campaign)}
-                  className="bg-[#1E1F22] text-white hover:bg-[#2B2D31] hover:text-white border-zinc-700"
+                  className="bg-black/20 text-white hover:bg-black/30 hover:text-white border-zinc-800"
                 >
                   View Details
                 </Button>
@@ -267,93 +430,141 @@ export function DashboardClient({
 
       {/* Create Campaign Dialog */}
       <Dialog open={showNewCampaign} onOpenChange={setShowNewCampaign}>
-        <DialogContent>
+        <DialogContent className="bg-[#2B2D31] border-zinc-800 text-white sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create New Campaign</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-white">
+              Create New Campaign
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Campaign Title</Label>
-              <Input
-                id="title"
-                value={newCampaign.title}
-                onChange={(e) =>
-                  setNewCampaign({ ...newCampaign, title: e.target.value })
-                }
-              />
+          <div className="space-y-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title" className="text-zinc-300">
+                  Campaign Title
+                </Label>
+                <Input
+                  id="title"
+                  value={newCampaign.title}
+                  onChange={(e) =>
+                    setNewCampaign({ ...newCampaign, title: e.target.value })
+                  }
+                  className="border-0 bg-[#1E1F22] text-white"
+                  placeholder="Enter campaign title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="budget_pool" className="text-zinc-300">
+                  Budget Pool
+                </Label>
+                <Input
+                  id="budget_pool"
+                  value={newCampaign.budget_pool}
+                  onChange={(e) =>
+                    setNewCampaign({
+                      ...newCampaign,
+                      budget_pool: e.target.value,
+                    })
+                  }
+                  className="border-0 bg-[#1E1F22] text-white"
+                  placeholder="Enter budget amount"
+                  type="number"
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="budget">Budget Pool</Label>
-              <Input
-                id="budget"
-                type="number"
-                value={newCampaign.budget_pool}
-                onChange={(e) =>
-                  setNewCampaign({
-                    ...newCampaign,
-                    budget_pool: e.target.value,
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rpm">RPM (Rate per thousand views)</Label>
+              <Label htmlFor="rpm" className="text-zinc-300">
+                RPM (Rate per 1000 views)
+              </Label>
               <Input
                 id="rpm"
-                type="number"
-                step="0.01"
                 value={newCampaign.rpm}
                 onChange={(e) =>
                   setNewCampaign({ ...newCampaign, rpm: e.target.value })
                 }
+                className="border-0 bg-[#1E1F22] text-white"
+                placeholder="Enter RPM"
+                type="number"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="guidelines">Guidelines</Label>
+              <Label htmlFor="guidelines" className="text-zinc-300">
+                Guidelines
+              </Label>
               <Textarea
                 id="guidelines"
                 value={newCampaign.guidelines}
                 onChange={(e) =>
                   setNewCampaign({ ...newCampaign, guidelines: e.target.value })
                 }
+                className="border-0 bg-[#1E1F22] text-white min-h-[100px]"
+                placeholder="Enter campaign guidelines"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="outline">Video Outline (Optional)</Label>
+              <Label htmlFor="video_outline" className="text-zinc-300">
+                Video Outline
+              </Label>
               <Textarea
-                id="outline"
-                value={newCampaign.video_outline || ""}
+                id="video_outline"
+                value={newCampaign.video_outline}
                 onChange={(e) =>
                   setNewCampaign({
                     ...newCampaign,
                     video_outline: e.target.value,
                   })
                 }
+                className="border-0 bg-[#1E1F22] text-white min-h-[100px]"
+                placeholder="Enter video outline"
               />
             </div>
-          </div>
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => setShowNewCampaign(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateCampaign} disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Campaign"}
-            </Button>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setShowNewCampaign(false)}
+                className="text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateCampaign}
+                disabled={isLoading}
+                className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+              >
+                {isLoading ? "Creating..." : "Create Campaign"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent>
+        <DialogContent className="bg-[#2B2D31] border-zinc-800 text-white">
           <DialogHeader>
-            <DialogTitle>Campaign Created Successfully</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-white">
+              Campaign Created
+            </DialogTitle>
           </DialogHeader>
-          <p className="py-4">
-            Your campaign has been created and is now live for creators to view.
-          </p>
+          <div className="py-4">
+            <div className="bg-green-500/10 text-green-500 p-4 rounded-lg space-y-2">
+              <p className="font-medium">Campaign successfully created!</p>
+              <p className="text-sm text-green-400">
+                Your campaign is now live and available for creators to view and
+                submit videos.
+              </p>
+            </div>
+          </div>
           <div className="flex justify-end">
-            <Button onClick={() => setShowSuccessDialog(false)}>Close</Button>
+            <Button
+              onClick={() => setShowSuccessDialog(false)}
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            >
+              Done
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
