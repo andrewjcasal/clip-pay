@@ -1,7 +1,6 @@
 "use server"
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers'
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"

@@ -1,8 +1,6 @@
 "use server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 
 export async function approveSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()

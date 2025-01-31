@@ -1,15 +1,11 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { DashboardHeader } from "../dashboard/header"
 
 export const dynamic = "force-dynamic"
 
 export default async function SubmissionsPage() {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({
-    cookies: () => cookieStore,
-  })
+  const supabase = await createServerSupabaseClient()
 
   const {
     data: { session },
