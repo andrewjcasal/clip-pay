@@ -12,9 +12,17 @@ export interface Brand {
 export interface Submission {
   id: string
   status: string
-  video_url: string | null
+  video_url: string
   file_path: string | null
   campaign_id: string
+  transcription: string
+  creator_id: string
+  created_at: string
+  views: number
+  creator: {
+    full_name: string
+    email: string
+  }
 }
 
 export interface Campaign {
@@ -26,6 +34,7 @@ export interface Campaign {
   status: string
   brand: Brand
   submission: Submission | null
+  video_outline: string | null
 }
 
 export interface CampaignWithSubmissions extends Campaign {

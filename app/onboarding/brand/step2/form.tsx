@@ -16,7 +16,7 @@ import {
   useElements,
   Elements,
 } from "@stripe/react-stripe-js"
-import { loadStripe, type SetupIntent } from "@stripe/stripe-js"
+import { loadStripe } from "@stripe/stripe-js"
 import { skipPaymentSetup } from "@/app/actions/brand"
 
 const stripePromise = loadStripe(
@@ -25,10 +25,9 @@ const stripePromise = loadStripe(
 
 interface Step2FormProps {
   clientSecret: string
-  userId: string
 }
 
-function PaymentForm({ userId }: { userId: string }) {
+function PaymentForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -46,7 +45,7 @@ function PaymentForm({ userId }: { userId: string }) {
       }
 
       // Confirm the setup
-      const result = await stripe.confirmSetup({
+      await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/onboarding/brand/confirmation`,
@@ -123,7 +122,7 @@ function PaymentForm({ userId }: { userId: string }) {
   )
 }
 
-export function Step2Form({ clientSecret, userId }: Step2FormProps) {
+export function Step2Form({ clientSecret }: Step2FormProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
       <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
@@ -150,7 +149,7 @@ export function Step2Form({ clientSecret, userId }: Step2FormProps) {
               },
             }}
           >
-            <PaymentForm userId={userId} />
+            <PaymentForm />
           </Elements>
         </CardContent>
       </Card>

@@ -1,11 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { PublicCampaignView } from "./public-view"
 
-export default async function PublicCampaignPage({
-  params,
-}: {
+interface PageProps {
   params: { id: string }
-}) {
+  searchParams: { [key: string]: string | string[] | undefined }
+}
+
+export default async function PublicCampaignPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient()
 
   const { data: campaign, error } = await supabase

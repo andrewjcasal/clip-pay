@@ -27,25 +27,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 )
 
-interface BrandOnboardingClientProps {
-  userEmail: string
-  clientSecret: string
-}
-
-interface OnboardingFormProps {
-  accountType: "brand" | "creator"
-  userEmail: string
-  accountLinkUrl?: string
-}
-
-export function OnboardingForm({
-  // @ts-ignore - unused variable
-  accountType,
-  // @ts-ignore - unused variable
-  userEmail,
-  // @ts-ignore - unused variable
-  accountLinkUrl,
-}: OnboardingFormProps) {
+export function OnboardingForm() {
   const [organizationName, setOrganizationName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -142,9 +124,10 @@ export function OnboardingForm({
 }
 
 export function BrandOnboardingClient({
-  userEmail,
   clientSecret,
-}: BrandOnboardingClientProps) {
+}: {
+  clientSecret: string
+}) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
       <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
@@ -172,7 +155,7 @@ export function BrandOnboardingClient({
                 },
               }}
             >
-              <OnboardingForm accountType="brand" userEmail={userEmail} />
+              <OnboardingForm />
             </Elements>
           ) : (
             <div>Loading...</div>
@@ -184,7 +167,7 @@ export function BrandOnboardingClient({
 }
 
 export default function OnboardingPage() {
-  return <OnboardingForm accountType="brand" userEmail="" />
+  return <OnboardingForm />
 }
 
 export async function getServerSideProps() {

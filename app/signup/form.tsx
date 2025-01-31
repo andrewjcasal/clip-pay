@@ -44,7 +44,7 @@ export function SignUpForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [userType, setUserType] = useState("creator")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
   const [state, action] = useActionState(signUpAction, null)

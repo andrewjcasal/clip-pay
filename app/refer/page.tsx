@@ -36,7 +36,7 @@ export default async function ReferralPage() {
   }
 
   // Get user's referral code
-  let { data: referralData, error: referralError } = await supabase
+  let { data: referralData } = await supabase
     .from("referrals")
     .select("code")
     .eq("profile_id", user.id)

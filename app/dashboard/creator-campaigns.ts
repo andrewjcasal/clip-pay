@@ -1,13 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { Campaign } from "./page"
+import { Campaign, Submission } from "./page"
 
 interface CreatorCampaign extends Campaign {
-  submission: {
-    id: string
-    status: string
-    video_url: string | null
-    file_path: string | null
-  } | null
+  submission: Submission | null
 }
 
 export const getCreatorCampaigns = async () => {

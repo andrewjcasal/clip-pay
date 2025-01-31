@@ -1,25 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { Campaign, CampaignWithSubmissions } from "./page"
-
-interface Submission {
-  id: string
-  video_url: string
-  file_path: string | null
-  transcription: string
-  creator_id: string
-  status: string
-  created_at: string
-  views: number
-  creator: {
-    full_name: string
-    email: string
-  }
-}
-
-export interface CampaignWithSubmissions extends Campaign {
-  submissions: Submission[]
-  activeSubmissionsCount: number
-}
+import { Campaign, CampaignWithSubmissions, Submission } from "./page"
 
 export const getBrandCampaigns = async (): Promise<
   CampaignWithSubmissions[]
@@ -78,31 +58,64 @@ export const getBrandCampaigns = async (): Promise<
     throw error
   }
 
-  // Transform the data to match the expected format
-  return campaigns.map((campaign: any) => ({
+  interface RawSubmission {
+    id: string
+    video_url: string | null
+    file_path: string | null
+    transcription: string | null
+    status: string
+    campaign_id: string
+    creator_id: string
+    created_at: string
+    views: number | null
+    creator: {
+      full_name: string | null
+      email: string | null
+    } | null
+  }
+
+  interface RawCampaign {
+    id: string
+    title: string
+    budget_pool: number
+    rpm: number
+    guidelines: string
+    video_outline: string | null
+    status: string
+    submissions: RawSubmission[] | null
+  }
+
+  return campaigns.map((campaign: RawCampaign) => ({
     id: campaign.id,
     title: campaign.title,
     budget_pool: String(campaign.budget_pool),
     rpm: String(campaign.rpm),
     guidelines: campaign.guidelines,
+    video_outline: campaign.video_outline,
     status: campaign.status,
     brand: {
       name: profile.name,
     },
     submission: null,
-    submissions: (campaign.submissions || []).map((submission: any) => ({
-      id: submission.id,
-      video_url: submission.video_url || "",
-      file_path: submission.file_path,
-      status: submission.status,
-      campaign_id: campaign.id,
-      creator: {
-        full_name: submission.creator?.full_name || "",
-        email: submission.creator?.email || "",
-      },
-    })),
+    submissions: (campaign.submissions || []).map(
+      (submission: RawSubmission): Submission => ({
+        id: submission.id,
+        video_url: submission.video_url || "",
+        file_path: submission.file_path,
+        transcription: submission.transcription || "",
+        status: submission.status,
+        campaign_id: campaign.id,
+        creator_id: submission.creator_id,
+        created_at: submission.created_at,
+        views: submission.views || 0,
+        creator: {
+          full_name: submission.creator?.full_name || "",
+          email: submission.creator?.email || "",
+        },
+      })
+    ),
     activeSubmissionsCount: (campaign.submissions || []).filter(
-      (s: any) => s.status === "active"
+      (s) => s.status === "active"
     ).length,
   }))
 }

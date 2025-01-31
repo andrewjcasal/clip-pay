@@ -34,7 +34,7 @@ const signInAction = async (prevState: State, formData: FormData) => {
 export default function SignInForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
 
   const [state, action] = useActionState(signInAction, null)
 
