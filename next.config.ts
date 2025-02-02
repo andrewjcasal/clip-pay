@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Disable x-powered-by header for security
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb'
+    },
+  },
 }
 
 export default nextConfig

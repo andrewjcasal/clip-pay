@@ -16,7 +16,7 @@ import { formatDistanceToNow } from "date-fns"
 import ReactPlayer from "react-player"
 import { approveSubmission, rejectSubmission, createCampaign } from "./actions"
 import { useRouter } from "next/navigation"
-import { Bell, Settings, X } from "lucide-react"
+import { Bell, Settings, X, LogOut } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import Link from "next/link"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Submission {
   id: string
@@ -50,6 +51,7 @@ interface CampaignWithSubmissions extends Campaign {
 interface DashboardClientProps {
   initialCampaigns: CampaignWithSubmissions[]
   brandId: string
+  email: string
 }
 
 interface NewCampaign {
@@ -64,6 +66,7 @@ interface NewCampaign {
 export function DashboardClient({
   initialCampaigns,
   brandId,
+  email,
 }: DashboardClientProps) {
   const [campaigns, setCampaigns] =
     useState<CampaignWithSubmissions[]>(initialCampaigns)
@@ -278,75 +281,13 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e]">
-      {/* Header */}
-      <div className="border-b border-zinc-800 bg-black/20 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Brand Platform</h1>
-              <p className="text-sm text-zinc-400">
-                Manage your campaigns and creator submissions
-              </p>
-            </div>
-            <div className="flex items-center gap-6">
-              <a
-                href="/dashboard"
-                className="text-white hover:text-zinc-300 transition-colors"
-              >
-                Dashboard
-              </a>
-              <a
-                href="/campaigns"
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                Campaigns
-              </a>
-              <a
-                href="/submissions"
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                Submissions
-              </a>
-              <div className="flex items-center gap-4 ml-4 border-l border-zinc-800 pl-4">
-                {hasNewCampaigns && (
-                  <Button
-                    onClick={() => window.location.reload()}
-                    variant="outline"
-                    className="text-sm"
-                  >
-                    Refresh to see new campaign
-                  </Button>
-                )}
-                <Link href="/notifications">
-                  <Bell className="w-5 h-5 text-zinc-400 hover:text-white transition-colors" />
-                </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-zinc-400 hover:text-white"
-                    >
-                      <Settings className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-40 bg-[#2B2D31] border-zinc-800"
-                  >
-                    <DropdownMenuItem
-                      className="text-white focus:bg-[#5865F2] cursor-pointer"
-                      onClick={handleLogout}
-                    >
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader
+        userType="brand"
+        email={email}
+        showRefreshButton={hasNewCampaigns}
+        refreshButtonText="Refresh to see new campaign"
+        onRefresh={() => window.location.reload()}
+      />
 
       {/* Metrics */}
       <div className="max-w-7xl mx-auto px-4 py-6">

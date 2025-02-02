@@ -41,8 +41,25 @@ export function Step1Form() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
-      <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
+      {/* Animated Background Image */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transform: "rotate(30deg) scale(1.5)",
+          transformOrigin: "center",
+          animation: "slideBackground 60s linear infinite",
+        }}
+      />
+
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-[#313338]/30" />
+
+      <Card className="w-full max-w-md border-none bg-[#2B2D31]/95 text-white backdrop-blur-sm relative z-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight">
             Welcome to Creator Pay
@@ -100,6 +117,17 @@ export function Step1Form() {
           </form>
         </CardContent>
       </Card>
+
+      <style jsx global>{`
+        @keyframes slideBackground {
+          0% {
+            background-position: 0 0;
+          }
+          100% {
+            background-position: 0 -200%;
+          }
+        }
+      `}</style>
     </div>
   )
 }

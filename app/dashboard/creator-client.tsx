@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Upload, Bell, Settings, Share } from "lucide-react"
+import { Upload, Bell, Settings, Share, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Campaign {
   id: string
@@ -38,10 +39,12 @@ interface Campaign {
 
 interface CreatorDashboardClientProps {
   transformedCampaigns: Campaign[]
+  email: string
 }
 
 export function CreatorDashboardClient({
   transformedCampaigns = [],
+  email,
 }: CreatorDashboardClientProps) {
   const [campaigns, setCampaigns] = useState(transformedCampaigns)
   const [newCampaigns, setNewCampaigns] = useState<Campaign[]>([])
@@ -395,77 +398,13 @@ export function CreatorDashboardClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e]">
-      {/* Header */}
-      <div className="border-b border-zinc-800 bg-black/20 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">
-                Creator Platform
-              </h1>
-              <p className="text-sm text-zinc-400">
-                Browse and apply for brand campaigns
-              </p>
-            </div>
-            <div className="flex items-center gap-6">
-              <a
-                href="/dashboard"
-                className="text-white hover:text-zinc-300 transition-colors"
-              >
-                Dashboard
-              </a>
-              <a
-                href="/submissions"
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                My Submissions
-              </a>
-              <a
-                href="/earnings"
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                Earnings
-              </a>
-              {hasNewCampaigns && (
-                <Button
-                  onClick={() => window.location.reload()}
-                  variant="outline"
-                  className="text-sm"
-                >
-                  New campaigns available
-                </Button>
-              )}
-              <div className="flex items-center gap-4 ml-4 border-l border-zinc-800 pl-4">
-                <Link href="/notifications">
-                  <Bell className="text-zinc-400 hover:text-white transition-colors" />
-                </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-zinc-400 hover:text-white"
-                    >
-                      <Settings className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-40 bg-[#2B2D31] border-zinc-800"
-                  >
-                    <DropdownMenuItem
-                      className="text-white focus:bg-[#5865F2] cursor-pointer"
-                      onClick={handleLogout}
-                    >
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader
+        userType="creator"
+        email={email}
+        showRefreshButton={hasNewCampaigns}
+        refreshButtonText="New campaigns available"
+        onRefresh={() => window.location.reload()}
+      />
 
       {/* Metrics */}
       <div className="max-w-7xl mx-auto px-4 py-6">

@@ -62,22 +62,24 @@ export default async function DashboardPage() {
   // If onboarding not completed, redirect to appropriate onboarding flow
   if (!profile?.onboarding_completed) {
     redirect(
-      `/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator/profile"}`
+      `/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
     )
   }
 
-  // For brands, get campaigns with submissions
-  if (profile?.user_type === "brand") {
-    const transformedCampaigns = await getBrandCampaigns()
-    return (
-      <DashboardClient
-        initialCampaigns={transformedCampaigns}
-        brandId={profile.id}
-      />
-    )
-  }
-
-  // For creators, get available campaigns
-  const transformedCampaigns = await getCreatorCampaigns()
-  return <CreatorDashboardClient transformedCampaigns={transformedCampaigns} />
+  return (
+    <div className="min-h-screen bg-[#313338]">
+      {profile?.user_type === "brand" ? (
+        <DashboardClient
+          initialCampaigns={await getBrandCampaigns()}
+          brandId={profile.id}
+          email={user.email || ""}
+        />
+      ) : (
+        <CreatorDashboardClient
+          transformedCampaigns={await getCreatorCampaigns()}
+          email={user.email || ""}
+        />
+      )}
+    </div>
+  )
 }

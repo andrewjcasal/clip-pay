@@ -4,14 +4,15 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
+import ReactPlayer from "react-player"
 
 interface Submission {
   id: string
-  video_url: string
-  file_path: string | null
-  transcription: string | null
   status: string
+  video_url: string | null
+  file_path: string | null
   created_at: string
+  views: number
   campaign: {
     id: string
     title: string
@@ -19,7 +20,7 @@ interface Submission {
     brand: {
       profiles: {
         organization_name: string
-      }
+      }[]
     }
   }
 }
@@ -37,86 +38,88 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
   } | null>(null)
 
   return (
-    <div className="min-h-screen bg-[#313338]">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid gap-6">
-          {submissions.map((submission) => (
-            <div key={submission.id} className="bg-[#2B2D31] rounded-lg p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <button className="text-xl font-semibold text-white">
-                    {submission.campaign.title}
-                  </button>
-                  <p className="text-zinc-400">
-                    Brand:{" "}
-                    {submission.campaign.brand.profiles.organization_name}
-                  </p>
-                  <button
-                    className="text-sm text-zinc-400 transition-colors hover:text-white underline"
-                    onClick={() =>
-                      setSelectedCampaign({
-                        id: submission.campaign.id,
-                        title: submission.campaign.title,
-                        brand:
-                          submission.campaign.brand.profiles.organization_name,
-                        rpm: submission.campaign.rpm,
-                      })
-                    }
-                  >
-                    View Campaign
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      submission.status === "approved"
-                        ? "bg-green-500/10 text-green-500"
-                        : submission.status === "rejected"
-                          ? "bg-red-500/10 text-red-500"
-                          : "bg-yellow-500/10 text-yellow-500"
-                    }`}
-                  >
-                    {submission.status.charAt(0).toUpperCase() +
-                      submission.status.slice(1)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-6">
-                <div className="w-2/3">
-                  <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-                    <iframe
-                      src={submission.video_url}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    ></iframe>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">My Submissions</h1>
+        </div>
+
+        <div className="space-y-4">
+          {submissions.length > 0 ? (
+            submissions.map((submission) => (
+              <div
+                key={submission.id}
+                className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6 space-y-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">
+                      {submission.campaign.title}
+                    </h3>
+                    <p className="text-sm text-zinc-400">
+                      {submission.campaign.brand.profiles[0]?.organization_name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-zinc-500">
+                        Submitted{" "}
+                        {formatDistanceToNow(new Date(submission.created_at), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                      <span className="text-xs text-zinc-500">•</span>
+                      <span className="text-xs text-zinc-500">
+                        {submission.views.toLocaleString()} views
+                      </span>
+                      <span className="text-xs text-zinc-500">•</span>
+                      <span className="text-xs text-zinc-500">
+                        ${submission.campaign.rpm} RPM
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span
+                      className={`text-sm px-3 py-1 rounded-full ${
+                        submission.status === "approved"
+                          ? "bg-green-500/10 text-green-400"
+                          : submission.status === "rejected"
+                            ? "bg-red-500/10 text-red-400"
+                            : "bg-yellow-500/10 text-yellow-400"
+                      }`}
+                    >
+                      {submission.status.charAt(0).toUpperCase() +
+                        submission.status.slice(1)}
+                    </span>
                   </div>
                 </div>
-                <div className="w-1/3 bg-[#1E1F22] rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-white mb-2">
-                    Transcription
-                  </h3>
-                  <p className="text-sm text-zinc-400">
-                    {submission.transcription || "Processing transcription..."}
-                  </p>
+                <div className="flex gap-6">
+                  <div className="w-2/3">
+                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+                      <iframe
+                        src={submission.video_url}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  </div>
+                  <div className="w-1/3 bg-[#1E1F22] rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-white mb-2">
+                      Transcription
+                    </h3>
+                    <p className="text-sm text-zinc-400">
+                      {submission.transcription ||
+                        "Processing transcription..."}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-between items-center mt-4">
-                <div className="text-zinc-400">
-                  Submitted:{" "}
-                  {formatDistanceToNow(new Date(submission.created_at), {
-                    addSuffix: true,
-                  })}
-                </div>
-                <div className="text-zinc-400">
-                  RPM: ${submission.campaign.rpm}
-                </div>
-              </div>
-            </div>
-          ))}
-          {submissions.length === 0 && (
-            <div className="text-center text-zinc-400 py-12">
-              No submissions yet. Check the dashboard for available campaigns!
+            ))
+          ) : (
+            <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6 text-center">
+              <p className="text-zinc-400">No submissions yet</p>
+              <p className="text-sm text-zinc-500 mt-1">
+                Start submitting videos to campaigns to earn money
+              </p>
             </div>
           )}
         </div>

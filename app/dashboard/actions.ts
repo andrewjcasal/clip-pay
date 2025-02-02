@@ -8,6 +8,7 @@ import { promisify } from "util"
 import { join } from "path"
 import { unlink } from "fs/promises"
 import { Deepgram } from "@deepgram/sdk"
+import { Alternatives } from "@deepgram/sdk/dist/enums"
 
 const execAsync = promisify(exec)
 
@@ -165,40 +166,72 @@ async function processVideo(
   userId: string
 ): Promise<{ audioPath: string; transcription: string }> {
   try {
-    // Create unique names for the audio file
-    const audioFileName = `${userId}_${Date.now()}.mp3`
-    const audioPath = join("/tmp", audioFileName)
+    console.log("Starting video processing for path:", videoPath)
 
-    // Extract audio using ffmpeg
-    await execAsync(`ffmpeg -i "${videoPath}" -q:a 0 -map a "${audioPath}"`)
+    // Create unique names for the audio file
+    const audioFileName = `${userId}_${Date.now()}.wav` // Changed to WAV for better quality
+    const audioPath = join("/tmp", audioFileName)
+    console.log("Will extract audio to:", audioPath)
+
+    // Extract audio using ffmpeg with improved parameters
+    console.log("Running ffmpeg command...")
+    const ffmpegCommand = `ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 44100 -ac 2 -af "volume=1.5" "${audioPath}"`
+    console.log("FFmpeg command:", ffmpegCommand)
+    const { stdout, stderr } = await execAsync(ffmpegCommand)
+    if (stderr) {
+      console.log("ffmpeg stderr:", stderr)
+    }
+    console.log("ffmpeg stdout:", stdout)
+
+    // Verify audio file exists and has content
+    const audioStats = await readFile(audioPath)
+    console.log("Extracted audio file size:", audioStats.length, "bytes")
 
     // Read the audio file
     const audioFile = await readFile(audioPath)
+    console.log("Successfully read audio file")
 
-    // Transcribe using Deepgram
+    // Transcribe using Deepgram with more options
+    console.log("Sending to Deepgram for transcription...")
     const response = await deepgram.transcription.preRecorded(
-      { buffer: audioFile, mimetype: "audio/mp3" },
+      { buffer: audioFile, mimetype: "audio/wav" },
       {
         smart_format: true,
         punctuate: true,
         utterances: true,
+        model: "general-enhanced", // Use enhanced model
+        language: "en-US",
+        tier: "enhanced",
+        detect_language: true,
+        diarize: true,
+        numerals: true,
+        profanity_filter: false,
       }
     )
 
+    console.log("Full Deepgram response:", JSON.stringify(response, null, 2))
+
     if (!response.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
+      console.error("No transcript in response. Full response:", response)
       throw new Error("Failed to get transcription from Deepgram")
     }
 
     // Clean up the audio file
     await unlink(audioPath)
+    console.log("Cleaned up temporary audio file")
 
     return {
       audioPath,
       transcription: response.results.channels[0].alternatives[0].transcript,
     }
   } catch (error) {
-    console.error("Error processing video:", error)
-    throw new Error("Failed to process video")
+    console.error("Detailed error in video processing:", error)
+    if (error instanceof Error) {
+      console.error("Error stack:", error.stack)
+    }
+    throw new Error(
+      `Failed to process video: ${error instanceof Error ? error.message : "Unknown error"}`
+    )
   }
 }
 
@@ -301,7 +334,7 @@ export async function submitVideo({
         video_url: finalVideoUrl,
         file_path: filePath,
         transcription,
-        status: "pending",
+        status: "active",
       })
       .select()
       .single()
@@ -356,6 +389,7 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     budget_pool: String(campaign.budget_pool),
     rpm: String(campaign.rpm),
     guidelines: campaign.guidelines,
+    video_outline: campaign.video_outline,
     status: campaign.status,
     brand: {
       name: campaign.brand?.brand_profile?.organization_name || "Unknown Brand",

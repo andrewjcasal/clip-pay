@@ -10,13 +10,31 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { CheckCircle2 } from "lucide-react"
+import Link from "next/link"
 
 export function ConfirmationForm() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4">
-      <Card className="w-full max-w-md border-none bg-[#2B2D31] text-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
+      {/* Animated Background Image */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transform: "rotate(30deg) scale(1.5)",
+          transformOrigin: "center",
+          animation: "slideBackground 60s linear infinite",
+        }}
+      />
+
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-[#313338]/30" />
+
+      <Card className="w-full max-w-md border-none bg-[#2B2D31]/95 text-white backdrop-blur-sm relative z-10">
         <CardHeader className="space-y-1">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
             <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -42,15 +60,26 @@ export function ConfirmationForm() {
               </ul>
             </div>
 
-            <Button
-              className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
-              onClick={() => router.push("/dashboard")}
+            <Link
+              href="/dashboard"
+              className="inline-block w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-2 px-4 rounded transition-colors"
             >
               Go to Dashboard
-            </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
+
+      <style jsx global>{`
+        @keyframes slideBackground {
+          0% {
+            background-position: 0 0;
+          }
+          100% {
+            background-position: 0 -200%;
+          }
+        }
+      `}</style>
     </div>
   )
 }

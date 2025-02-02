@@ -1,14 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
-import { DashboardHeader } from "../dashboard/header"
+import { DashboardHeader } from "@/components/dashboard-header"
 import { ReferralClient } from "./client"
 
 export const dynamic = "force-dynamic"
 
-export default async function ReferralPage() {
+export default async function ReferPage() {
   const supabase = await createServerSupabaseClient()
-
-  // Get authenticated user
   const {
     data: { user },
     error: userError,
@@ -66,19 +64,7 @@ export default async function ReferralPage() {
 
   return (
     <div className="min-h-screen bg-[#313338]">
-      <div className="border-b border-zinc-800 bg-black/20 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">
-                Creator Platform
-              </h1>
-              <p className="text-sm text-zinc-400">Share your referral code</p>
-            </div>
-            <DashboardHeader userType={profile.user_type} />
-          </div>
-        </div>
-      </div>
+      <DashboardHeader userType="creator" email={user.email || ""} />
       <ReferralClient referralCode={referralData?.code || ""} />
     </div>
   )

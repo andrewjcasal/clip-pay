@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
     // Create response with appropriate redirect
     const redirectUrl = !profile?.onboarding_completed
-      ? `${requestUrl.origin}/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator/profile"}`
+      ? `${requestUrl.origin}/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
       : `${requestUrl.origin}${next}`
 
     const response = NextResponse.redirect(redirectUrl)

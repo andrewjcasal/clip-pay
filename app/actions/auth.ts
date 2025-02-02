@@ -39,7 +39,7 @@ export async function signIn(formData: FormData) {
     // Redirect based on onboarding status
     if (!profile?.onboarding_completed) {
       redirect(
-        `/onboarding/${user.user_metadata.user_type === "brand" ? "brand/profile" : "creator/profile"}`
+        `/onboarding/${user.user_metadata.user_type === "brand" ? "brand/profile" : "creator"}`
       )
     }
 
