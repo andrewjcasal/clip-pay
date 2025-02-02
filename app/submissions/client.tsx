@@ -23,6 +23,7 @@ interface Submission {
       }[]
     }
   }
+  transcription: string | null
 }
 
 interface SubmissionsClientProps {
@@ -95,7 +96,7 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                   <div className="w-2/3">
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
                       <iframe
-                        src={submission.video_url}
+                        src={submission.video_url as string}
                         className="w-full h-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
