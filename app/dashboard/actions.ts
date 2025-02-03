@@ -117,27 +117,48 @@ export async function createCampaign({
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
-  const { data } = await supabase
-    .from("profiles")
-    .select(
-      `
-    *,
-    brands (
-      id,
-      payment_verified
-    )
-  `
-    )
-    .eq("id", user?.id)
-    .single()
-
-  if (!data?.brands?.id) {
-    throw new Error("Brand not found")
+  if (authError) {
+    console.error("Auth error:", authError)
+    throw new Error("Authentication failed")
   }
 
-  const { data: campaign, error } = await supabase
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  // First get the user's profile to get their brand
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, brands!inner (id)")
+    .eq("id", user.id)
+    .single()
+
+  if (profileError) {
+    console.error("Profile fetch error:", profileError)
+    throw new Error("Failed to fetch user profile")
+  }
+
+  if (!profile?.brands?.id) {
+    console.error("No brand found for user:", user.id)
+    throw new Error("No brand found for user")
+  }
+
+  const userBrandId = profile.brands.id
+
+  if (userBrandId !== brandId) {
+    console.error(
+      "Brand mismatch. User brand:",
+      userBrandId,
+      "Request brand:",
+      brandId
+    )
+    throw new Error("Unauthorized: Brand does not belong to user")
+  }
+
+  const { data: campaign, error: campaignError } = await supabase
     .from("campaigns")
     .insert({
       title,
@@ -146,15 +167,15 @@ export async function createCampaign({
       guidelines,
       video_outline,
       referral_bonus_rate,
-      brand_id: data.brands.id,
+      brand_id: brandId,
       status: "active",
     })
     .select()
     .single()
 
-  if (error) {
-    console.error("Error creating campaign:", error)
-    throw error
+  if (campaignError) {
+    console.error("Error creating campaign:", campaignError)
+    throw campaignError
   }
 
   revalidatePath("/dashboard")
@@ -396,4 +417,49 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     },
     submission: campaign.submission?.[0] || null,
   }))
+}
+
+export async function pollNewSubmissions(campaignIds: string[]) {
+  const supabase = await createServerSupabaseClient()
+  const { data: newSubmissions, error } = await supabase
+    .from("submissions")
+    .select(
+      `
+      id,
+      video_url,
+      file_path,
+      transcription,
+      status,
+      created_at,
+      views,
+      creator_id,
+      campaign_id,
+      creator:creator_profiles (
+        full_name:organization_name,
+        email
+      )
+    `
+    )
+    .eq("status", "pending")
+    .in("campaign_id", campaignIds)
+    .order("created_at", { ascending: false })
+    .limit(1)
+
+  if (error) {
+    throw error
+  }
+
+  return newSubmissions
+}
+
+export async function signOut() {
+  const supabase = await createServerSupabaseClient()
+  const { error } = await supabase.auth.signOut()
+
+  if (error) {
+    throw error
+  }
+
+  revalidatePath("/dashboard")
+  return { success: true }
 }

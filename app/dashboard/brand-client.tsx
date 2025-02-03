@@ -14,7 +14,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Campaign } from "./page"
 import { formatDistanceToNow } from "date-fns"
 import ReactPlayer from "react-player"
-import { approveSubmission, rejectSubmission, createCampaign } from "./actions"
+import {
+  approveSubmission,
+  rejectSubmission,
+  createCampaign,
+  pollNewSubmissions,
+  signOut,
+} from "./actions"
 import { useRouter } from "next/navigation"
 import { Bell, Settings, X, LogOut } from "lucide-react"
 import {
@@ -23,7 +29,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
 import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -86,87 +91,70 @@ export function DashboardClient({
   const [hasNewSubmission, setHasNewSubmission] = useState(false)
   const [hasNewCampaigns, setHasNewCampaigns] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   useEffect(() => {
     // Poll for new submissions every minute
     const pollInterval = setInterval(async () => {
-      const { data: newSubmissions } = await supabase
-        .from("submissions")
-        .select(
-          `
-          id,
-          video_url,
-          file_path,
-          transcription,
-          status,
-          created_at,
-          views,
-          creator_id,
-          campaign_id,
-          creator:creator_profiles (
-            full_name:organization_name,
-            email
+      try {
+        const campaignIds = campaigns.map((campaign) => campaign.id)
+        const newSubmissions = await pollNewSubmissions(campaignIds)
+
+        if (newSubmissions && newSubmissions.length > 0) {
+          const latestSubmission = newSubmissions[0]
+          // Check if this is a new submission we haven't seen
+          const isNewSubmission = campaigns.some(
+            (campaign) =>
+              campaign.id === latestSubmission.campaign_id &&
+              !campaign.submissions.some((s) => s.id === latestSubmission.id)
           )
-        `
-        )
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1)
 
-      if (newSubmissions && newSubmissions.length > 0) {
-        const latestSubmission = newSubmissions[0]
-        // Check if this is a new submission we haven't seen
-        const isNewSubmission = campaigns.some(
-          (campaign) =>
-            campaign.id === latestSubmission.campaign_id &&
-            !campaign.submissions.some((s) => s.id === latestSubmission.id)
-        )
-
-        if (isNewSubmission) {
-          // Update the campaigns with the new submission
-          setCampaigns((currentCampaigns) =>
-            currentCampaigns.map((campaign) =>
-              campaign.id === latestSubmission.campaign_id
-                ? {
-                    ...campaign,
-                    submissions: [
-                      {
-                        id: latestSubmission.id,
-                        video_url: latestSubmission.video_url || "",
-                        file_path: latestSubmission.file_path,
-                        transcription: latestSubmission.transcription || "",
-                        creator_id: latestSubmission.creator_id,
-                        status: latestSubmission.status,
-                        created_at: latestSubmission.created_at,
-                        views: latestSubmission.views,
-                        creator: {
-                          full_name:
-                            latestSubmission.creator?.[0]?.full_name || "",
-                          email: latestSubmission.creator?.[0]?.email || "",
-                        },
-                      } as Submission,
-                      ...campaign.submissions,
-                    ],
-                  }
-                : campaign
+          if (isNewSubmission) {
+            // Update the campaigns with the new submission
+            setCampaigns((currentCampaigns) =>
+              currentCampaigns.map((campaign) =>
+                campaign.id === latestSubmission.campaign_id
+                  ? {
+                      ...campaign,
+                      submissions: [
+                        {
+                          id: latestSubmission.id,
+                          video_url: latestSubmission.video_url || "",
+                          file_path: latestSubmission.file_path,
+                          transcription: latestSubmission.transcription || "",
+                          creator_id: latestSubmission.creator_id,
+                          status: latestSubmission.status,
+                          created_at: latestSubmission.created_at,
+                          views: latestSubmission.views,
+                          creator: {
+                            full_name:
+                              latestSubmission.creator?.[0]?.full_name || "",
+                            email: latestSubmission.creator?.[0]?.email || "",
+                          },
+                        } as Submission,
+                        ...campaign.submissions,
+                      ],
+                    }
+                  : campaign
+              )
             )
-          )
-          setHasNewSubmission(true)
-          toast.success("New submission received!", {
-            description:
-              "A creator has submitted a video to one of your campaigns.",
-            action: {
-              label: "Refresh",
-              onClick: () => window.location.reload(),
-            },
-          })
+            setHasNewSubmission(true)
+            toast.success("New submission received!", {
+              description:
+                "A creator has submitted a video to one of your campaigns.",
+              action: {
+                label: "Refresh",
+                onClick: () => window.location.reload(),
+              },
+            })
+          }
         }
+      } catch (error) {
+        console.error("Error polling for new submissions:", error)
       }
     }, 60000) // Poll every minute
 
     return () => clearInterval(pollInterval)
-  }, [campaigns, supabase])
+  }, [campaigns])
 
   const handleCreateCampaign = async () => {
     try {
@@ -202,6 +190,7 @@ export function DashboardClient({
       router.refresh()
     } catch (error) {
       console.error("Failed to create campaign:", error)
+      toast.error("Failed to create campaign")
     } finally {
       setIsLoading(false)
     }
@@ -253,8 +242,7 @@ export function DashboardClient({
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      await signOut()
       router.push("/signin")
     } catch (error) {
       console.error("Error logging out:", error)

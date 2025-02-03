@@ -66,12 +66,23 @@ export default async function DashboardPage() {
     )
   }
 
+  let brandId = null
+  if (profile?.user_type === "brand") {
+    const { data: brand } = await supabase
+      .from("brands")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    brandId = brand?.id
+  }
+
   return (
     <div className="min-h-screen bg-[#313338]">
       {profile?.user_type === "brand" ? (
         <DashboardClient
           initialCampaigns={await getBrandCampaigns()}
-          brandId={profile.id}
+          brandId={brandId}
           email={user.email || ""}
         />
       ) : (

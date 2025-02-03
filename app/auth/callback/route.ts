@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     if (error) {
       return NextResponse.redirect(
-        `${requestUrl.origin}/signin?error=${encodeURIComponent(error.message)}`
+        `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=${encodeURIComponent(error.message)}`
       )
     }
 
@@ -43,9 +43,7 @@ export async function GET(request: Request) {
     if (profileError) {
       console.log("Failed to fetch profile:", profileError.message)
       return NextResponse.redirect(
-        process.env.NODE_ENV === "production"
-          ? `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
-          : `${requestUrl.origin}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
+        `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
       )
     }
 

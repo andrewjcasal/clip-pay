@@ -4,8 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "sonner"
+import { updateUserEmail, updateUserPassword } from "./actions"
 
 interface SettingsFormProps {
   email: string
@@ -14,19 +14,15 @@ interface SettingsFormProps {
 
 export function SettingsForm({ email, userType }: SettingsFormProps) {
   const [newEmail, setNewEmail] = useState(email)
-  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClientComponentClient()
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.updateUser({ email: newEmail })
-      if (error) throw error
-
+      await updateUserEmail(newEmail)
       toast.success("Email update initiated", {
         description: "Please check your new email for a confirmation link.",
       })
@@ -46,13 +42,8 @@ export function SettingsForm({ email, userType }: SettingsFormProps) {
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-      if (error) throw error
-
+      await updateUserPassword(newPassword)
       toast.success("Password updated successfully")
-      setCurrentPassword("")
       setNewPassword("")
     } catch (error) {
       console.error("Error updating password:", error)
