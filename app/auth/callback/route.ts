@@ -43,14 +43,16 @@ export async function GET(request: Request) {
     if (profileError) {
       console.log("Failed to fetch profile:", profileError.message)
       return NextResponse.redirect(
-        `${requestUrl.origin}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
+        process.env.NODE_ENV === "production"
+          ? `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
+          : `${requestUrl.origin}/signin?error=${encodeURIComponent("Failed to fetch user profile")}`
       )
     }
 
     // Create response with appropriate redirect
     const redirectUrl = !profile?.onboarding_completed
-      ? `${requestUrl.origin}/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
-      : `${requestUrl.origin}${next}`
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
+      : `${process.env.NEXT_PUBLIC_BASE_URL}${next}`
 
     const response = NextResponse.redirect(redirectUrl)
 
