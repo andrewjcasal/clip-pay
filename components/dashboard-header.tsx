@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Settings, LogOut } from "lucide-react"
+import { Bell, Settings, LogOut, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,17 +15,17 @@ import Link from "next/link"
 interface DashboardHeaderProps {
   userType: "creator" | "brand"
   email: string
+  onRefresh?: () => void
   showRefreshButton?: boolean
   refreshButtonText?: string
-  onRefresh?: () => void
 }
 
 export function DashboardHeader({
   userType,
   email,
-  showRefreshButton,
-  refreshButtonText = "Refresh",
   onRefresh,
+  showRefreshButton,
+  refreshButtonText,
 }: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -96,10 +96,12 @@ export function DashboardHeader({
             <div className="flex items-center gap-4 ml-4 border-l border-zinc-800 pl-4">
               {showRefreshButton && (
                 <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={onRefresh}
-                  variant="outline"
-                  className="text-sm"
+                  className="text-[#5865F2] hover:text-[#4752C4] hover:bg-[#5865F2]/10"
                 >
+                  <RefreshCw className="w-4 h-4 mr-2" />
                   {refreshButtonText}
                 </Button>
               )}

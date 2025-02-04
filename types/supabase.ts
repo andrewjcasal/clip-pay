@@ -184,52 +184,46 @@ export type Database = {
       }
       submissions: {
         Row: {
-          campaign_id: string
-          created_at: string
-          creator_id: string
-          file_path: string | null
           id: string
-          payout_due_date: string | null
-          payout_status: string | null
-          processed_at: string | null
-          processing_error: string | null
-          status: string
-          transcription: string | null
-          updated_at: string
+          created_at: string
+          updated_at: string | null
+          campaign_id: string
+          creator_id: string
           video_url: string | null
+          file_path: string | null
+          transcription: string | null
+          status: string
           views: number
+          payout_status: string | null
+          payout_due_date: string | null
         }
         Insert: {
-          campaign_id: string
-          created_at?: string
-          creator_id: string
-          file_path?: string | null
           id?: string
-          payout_due_date?: string | null
-          payout_status?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          status?: string
-          transcription?: string | null
-          updated_at?: string
+          created_at?: string
+          updated_at?: string | null
+          campaign_id: string
+          creator_id: string
           video_url?: string | null
+          file_path?: string | null
+          transcription?: string | null
+          status?: string
           views?: number
+          payout_status?: string | null
+          payout_due_date?: string | null
         }
         Update: {
-          campaign_id?: string
-          created_at?: string
-          creator_id?: string
-          file_path?: string | null
           id?: string
-          payout_due_date?: string | null
-          payout_status?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          status?: string
-          transcription?: string | null
-          updated_at?: string
+          created_at?: string
+          updated_at?: string | null
+          campaign_id?: string
+          creator_id?: string
           video_url?: string | null
+          file_path?: string | null
+          transcription?: string | null
+          status?: string
           views?: number
+          payout_status?: string | null
+          payout_due_date?: string | null
         }
         Relationships: [
           {
@@ -239,6 +233,47 @@ export type Database = {
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      notifications: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          message: string
+          type: string
+          recipient_id: string
+          read: boolean | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          message: string
+          type: string
+          recipient_id: string
+          read?: boolean | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          message?: string
+          type?: string
+          recipient_id?: string
+          read?: boolean | null
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }

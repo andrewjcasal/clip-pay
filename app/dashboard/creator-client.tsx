@@ -5,7 +5,13 @@ import { Upload, Bell, Settings, Share, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { submitVideo, getCreatorCampaigns } from "./actions"
+import {
+  submitVideo,
+  getCreatorCampaigns,
+  updateSubmissionVideoUrl,
+  checkForNotifications,
+  markNotificationAsSeen,
+} from "./actions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +29,11 @@ interface Campaign {
   title: string
   budget_pool: string
   rpm: string
-  guidelines: string
-  status: string
+  guidelines: string | null
+  status: string | null
   brand: {
     name: string
+    payment_verified?: boolean
   }
   submission: {
     id: string
@@ -47,25 +54,64 @@ export function CreatorDashboardClient({
   email,
 }: CreatorDashboardClientProps) {
   const [campaigns, setCampaigns] = useState(transformedCampaigns)
+  console.log("campaigns", campaigns)
   const [newCampaigns, setNewCampaigns] = useState<Campaign[]>([])
   const [hasNewCampaigns, setHasNewCampaigns] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null
   )
   const [videoUrl, setVideoUrl] = useState("")
+  const [updatingUrl, setUpdatingUrl] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submittedCampaignId, setSubmittedCampaignId] = useState<string | null>(
     null
   )
   const [isDragging, setIsDragging] = useState(false)
-  const [showNewCampaignBanner, setShowNewCampaignBanner] = useState(false)
   const [copiedCampaign, setCopiedCampaign] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
+
+  // Check for notifications on mount and when campaigns change
+  useEffect(() => {
+    const checkNotifications = async () => {
+      try {
+        const notifications = await checkForNotifications()
+        if (notifications && notifications.length > 0) {
+          notifications.forEach(async (notification) => {
+            toast.success(
+              `Your video for campaign "${notification.campaign.title}" has been approved!`,
+              {
+                description:
+                  "You can now add your public video URL to start earning.",
+                duration: 5000,
+                action: {
+                  label: "View Campaign",
+                  onClick: () => {
+                    const campaign = campaigns.find(
+                      (c) => c.submission && c.submission.id === notification.id
+                    )
+                    if (campaign) {
+                      setSelectedCampaign(campaign)
+                    }
+                  },
+                },
+              }
+            )
+            // Mark notification as seen
+            await markNotificationAsSeen(notification.id)
+          })
+        }
+      } catch (error) {
+        console.error("Error checking notifications:", error)
+      }
+    }
+
+    checkNotifications()
+  }, [campaigns])
 
   useEffect(() => {
     // Poll for new campaigns every minute
@@ -237,6 +283,39 @@ export function CreatorDashboardClient({
     }
   }
 
+  const handleUpdateVideoUrl = async (submissionId: string) => {
+    if (!videoUrl) return
+
+    setUpdatingUrl(true)
+    try {
+      await updateSubmissionVideoUrl(submissionId, videoUrl)
+
+      // Update local state
+      setCampaigns((prevCampaigns) =>
+        prevCampaigns.map((campaign) => {
+          if (campaign.submission?.id === submissionId) {
+            return {
+              ...campaign,
+              submission: {
+                ...campaign.submission,
+                video_url: videoUrl,
+              },
+            }
+          }
+          return campaign
+        })
+      )
+
+      toast.success("Video URL updated successfully!")
+      setVideoUrl("")
+    } catch (error) {
+      console.error("Error updating video URL:", error)
+      toast.error("Failed to update video URL. Please try again.")
+    } finally {
+      setUpdatingUrl(false)
+    }
+  }
+
   const renderSubmissionSection = () => {
     if (isJustSubmitted) {
       return (
@@ -271,19 +350,53 @@ export function CreatorDashboardClient({
             <h3 className="text-lg font-medium">
               You&apos;ve already submitted for this campaign
             </h3>
-            <p className="text-sm">
-              View your submission in your{" "}
-              <Button
-                variant="link"
-                className="text-[#5865F2] p-0 h-auto font-semibold hover:text-[#4752C4]"
-                onClick={() => {
-                  /* TODO: Add navigation to submissions page */
-                }}
-              >
-                submissions dashboard
-              </Button>
-              .
-            </p>
+            {selectedCampaign.submission.status === "approved" ? (
+              <div className="space-y-3">
+                <p className="text-sm">
+                  Your submission has been approved! To start earning, please
+                  update your submission with a public video URL.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="publicVideoUrl" className="text-zinc-300">
+                    Public Video URL
+                  </Label>
+                  <Input
+                    id="publicVideoUrl"
+                    type="url"
+                    placeholder="Enter public video URL (YouTube, TikTok, etc.)"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    className="border-0 bg-[#1E1F22] text-white"
+                  />
+                  <Button
+                    onClick={() =>
+                      selectedCampaign.submission &&
+                      handleUpdateVideoUrl(selectedCampaign.submission.id)
+                    }
+                    disabled={
+                      !videoUrl || updatingUrl || !selectedCampaign.submission
+                    }
+                    className="bg-[#5865F2] hover:bg-[#4752C4] w-full mt-2"
+                  >
+                    {updatingUrl ? "Updating..." : "Update Video URL"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm">
+                View your submission in your{" "}
+                <Button
+                  variant="link"
+                  className="text-[#5865F2] p-0 h-auto font-semibold hover:text-[#4752C4]"
+                  onClick={() => {
+                    /* TODO: Add navigation to submissions page */
+                  }}
+                >
+                  submissions dashboard
+                </Button>
+                .
+              </p>
+            )}
           </div>
         </div>
       )
@@ -306,11 +419,17 @@ export function CreatorDashboardClient({
               onChange={(e) => setVideoUrl(e.target.value)}
               className="border-0 bg-[#1E1F22] text-white"
             />
+            <p className="text-sm text-zinc-500">
+              For privacy and security, we recommend using the file upload
+              option below for your initial submission. Once your video is
+              approved, you can update it with a public video URL to start
+              earning.
+            </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="file" className="text-zinc-300">
-              Or Upload Video
+              Upload Video
             </Label>
             <div
               onDragEnter={handleDragEnter}
@@ -466,29 +585,45 @@ export function CreatorDashboardClient({
                     <button
                       key={campaign.id}
                       onClick={() => setSelectedCampaign(campaign)}
-                      className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-colors group"
+                      className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-all group relative overflow-hidden"
                     >
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-white font-medium group-hover:text-[#5865F2] transition-colors">
-                            {campaign.title}
-                          </h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="space-y-2 flex-1">
+                            <h3 className="text-white font-medium text-lg group-hover:text-[#5865F2] transition-colors line-clamp-1">
+                              {campaign.title}
+                            </h3>
+                            <div className="flex items-center flex-wrap gap-2">
+                              <span className="text-sm text-zinc-400">
+                                by {campaign.brand?.name || "Unknown Brand"}
+                              </span>
+                              {campaign.brand?.payment_verified && (
+                                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                  Verified Payment
+                                </span>
+                              )}
+                            </div>
+                          </div>
                           {campaign.submission && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-[#5865F2]/10 text-[#5865F2]">
+                            <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-[#5865F2]/10 text-[#5865F2] font-medium border border-[#5865F2]/20">
                               Submitted
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-zinc-400">
-                          by {campaign.brand?.name || "Unknown Brand"}
-                        </p>
-                      </div>
 
-                      <div className="mt-4">
-                        <div className="text-zinc-400">
-                          RPM: ${campaign.rpm}
+                        <div className="flex items-center gap-3 mt-4">
+                          <div className="px-3 py-1.5 bg-black/20 rounded-md">
+                            <p className="text-sm font-medium text-white">
+                              ${Number(campaign.rpm).toFixed(2)}{" "}
+                              <span className="text-zinc-400 font-normal">
+                                RPM
+                              </span>
+                            </p>
+                          </div>
                         </div>
                       </div>
+                      <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/0 group-hover:bg-emerald-400/50 transition-all"></div>
                     </button>
                   ))}
                 </div>
@@ -509,67 +644,69 @@ export function CreatorDashboardClient({
               <div className="space-y-6">
                 {/* Campaign details */}
                 <div className="space-y-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">
-                      {selectedCampaign.title}
-                    </h2>
-                    <p className="text-zinc-400">
-                      by {selectedCampaign.brand?.name || "Unknown Brand"}
-                    </p>
-                  </div>
-
-                  <div className="absolute top-6 right-6">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="text-zinc-400 hover:text-white transition-colors">
-                          <Share className="w-5 h-5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-72 bg-[#2B2D31] border-zinc-800"
-                      >
-                        <DropdownMenuItem
-                          className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
-                          onClick={() =>
-                            handleCopy(
-                              `${window.location.origin}/campaigns/${selectedCampaign.id}`,
-                              selectedCampaign.id
-                            )
-                          }
-                        >
-                          <span className="text-sm">
-                            Copy public campaign link
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <h2 className="text-2xl font-bold text-white">
+                        {selectedCampaign.title}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <p className="text-zinc-400">
+                          by {selectedCampaign.brand?.name || "Unknown Brand"}
+                        </p>
+                        {selectedCampaign.brand?.payment_verified && (
+                          <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Verified Payment
                           </span>
-                          {copiedCampaign === selectedCampaign.id && (
-                            <span className="text-xs text-zinc-400">
-                              Copied!
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
+                            <Share className="w-5 h-5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-72 bg-[#2B2D31] border-zinc-800"
+                        >
+                          <DropdownMenuItem
+                            className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
+                            onClick={() =>
+                              handleCopy(
+                                `${window.location.origin}/campaigns/${selectedCampaign.id}`,
+                                selectedCampaign.id
+                              )
+                            }
+                          >
+                            <span className="text-sm">
+                              Copy public campaign link
                             </span>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-white focus:bg-[#5865F2] cursor-pointer"
-                          onClick={() => handleShare(selectedCampaign.id)}
-                        >
-                          <span className="text-sm">
-                            Share with referral code
-                          </span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                            {copiedCampaign === selectedCampaign.id && (
+                              <span className="text-xs text-zinc-400">
+                                Copied!
+                              </span>
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
-                  <div className="flex gap-4">
-                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-3 rounded-lg">
-                      <p className="text-sm text-zinc-400">Budget Pool</p>
-                      <p className="text-lg font-semibold text-white">
-                        ${selectedCampaign.budget_pool}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
+                      <p className="text-sm text-zinc-400 mb-1">Budget Pool</p>
+                      <p className="text-2xl font-semibold text-white">
+                        ${Number(selectedCampaign.budget_pool).toFixed(2)}
                       </p>
                     </div>
-                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-3 rounded-lg">
-                      <p className="text-sm text-zinc-400">RPM</p>
-                      <p className="text-lg font-semibold text-white">
-                        ${selectedCampaign.rpm}
+                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
+                      <p className="text-sm text-zinc-400 mb-1">RPM</p>
+                      <p className="text-2xl font-semibold text-white">
+                        ${Number(selectedCampaign.rpm).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -579,7 +716,7 @@ export function CreatorDashboardClient({
                       Guidelines
                     </h3>
                     <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                      <p className="text-sm text-zinc-300 whitespace-pre-wrap">
+                      <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
                         {selectedCampaign.guidelines}
                       </p>
                     </div>

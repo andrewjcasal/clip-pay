@@ -21,6 +21,7 @@ export const getCreatorCampaigns = async () => {
       `
       *,
         brand:brands (
+          payment_verified,
         name:profiles!inner (
             organization_name
           )
@@ -56,6 +57,7 @@ export const getCreatorCampaigns = async () => {
       created_at: campaign.created_at,
       brand: {
         name: campaign.brand?.name?.organization_name || "",
+        payment_verified: !!campaign.brand?.payment_verified,
       },
       submission: campaign.submission?.[0] || null,
     })

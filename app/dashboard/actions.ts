@@ -1,7 +1,6 @@
 "use server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
-import { Campaign } from "./page"
 import { writeFile, readFile } from "fs/promises"
 import { exec } from "child_process"
 import { promisify } from "util"
@@ -9,6 +8,7 @@ import { join } from "path"
 import { unlink } from "fs/promises"
 import { Deepgram } from "@deepgram/sdk"
 import { Alternatives } from "@deepgram/sdk/dist/enums"
+import { Database } from "@/types/supabase"
 
 const execAsync = promisify(exec)
 
@@ -29,8 +29,71 @@ type BrandProfile = {
   }
 }
 
+type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+type Brand = Database["public"]["Tables"]["brands"]["Row"]
+
+interface ProfileWithBrand extends Pick<Profile, "id"> {
+  brands: Pick<Brand, "id">
+}
+
+interface Campaign {
+  id: string
+  title: string
+  budget_pool: string
+  rpm: string
+  guidelines: string | null
+  video_outline: string | null
+  status: string | null
+  brand: {
+    name: string
+    payment_verified: boolean
+  }
+  submission: {
+    id: string
+    status: string
+    video_url: string | null
+    file_path: string | null
+    campaign_id: string
+  } | null
+}
+
+type PollSubmissionResponse = {
+  id: string
+  video_url: string | null
+  file_path: string | null
+  transcription: string | null
+  status: string
+  created_at: string
+  views: number
+  creator_id: string
+  campaign_id: string
+  creator: {
+    organization_name: string | null
+    email: string | null
+  }
+}
+
 export async function approveSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()
+
+  // Get submission and campaign details first
+  const { data: submission } = await supabase
+    .from("submissions")
+    .select(
+      `
+      id,
+      creator_id,
+      campaign:campaigns (
+        title
+      )
+    `
+    )
+    .eq("id", submissionId)
+    .single()
+
+  if (!submission) {
+    throw new Error("Submission not found")
+  }
 
   // Get payout duration from env (default to 7 days for production)
   const payoutDurationMinutes = Number(
@@ -41,7 +104,7 @@ export async function approveSubmission(submissionId: string) {
   const payoutDueDate = new Date()
   payoutDueDate.setMinutes(payoutDueDate.getMinutes() + payoutDurationMinutes)
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("submissions")
     .update({
       status: "approved",
@@ -55,8 +118,26 @@ export async function approveSubmission(submissionId: string) {
     throw error
   }
 
+  // Create a notification for the creator
+  const { error: notificationError } = await supabase
+    .from("notifications")
+    .insert({
+      recipient_id: submission.creator_id,
+      type: "submission_approved",
+      title: "Submission Approved",
+      message: `Your submission for campaign "${submission.campaign.title}" has been approved!`,
+      metadata: {
+        submission_id: submissionId,
+        campaign_title: submission.campaign.title,
+      },
+    })
+
+  if (notificationError) {
+    console.error("Error creating notification:", notificationError)
+    // Don't throw here, as the submission was already approved
+  }
+
   revalidatePath("/dashboard")
-  return data
 }
 
 export async function rejectSubmission(submissionId: string) {
@@ -132,7 +213,7 @@ export async function createCampaign({
   // First get the user's profile to get their brand
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, brands!inner (id)")
+    .select<string, ProfileWithBrand>("id, brands!inner (id)")
     .eq("id", user.id)
     .single()
 
@@ -158,15 +239,36 @@ export async function createCampaign({
     throw new Error("Unauthorized: Brand does not belong to user")
   }
 
+  // Convert string values to numbers and validate
+  const numericBudgetPool = Number(budget_pool)
+  const numericRpm = Number(rpm)
+  const numericReferralRate = Number(referral_bonus_rate)
+
+  if (isNaN(numericBudgetPool) || numericBudgetPool <= 0) {
+    throw new Error("Invalid budget pool amount")
+  }
+
+  if (isNaN(numericRpm) || numericRpm <= 0) {
+    throw new Error("Invalid RPM amount")
+  }
+
+  if (
+    isNaN(numericReferralRate) ||
+    numericReferralRate < 0 ||
+    numericReferralRate > 100
+  ) {
+    throw new Error("Invalid referral bonus rate")
+  }
+
   const { data: campaign, error: campaignError } = await supabase
     .from("campaigns")
     .insert({
       title,
-      budget_pool,
-      rpm,
+      budget_pool: numericBudgetPool,
+      rpm: numericRpm,
       guidelines,
       video_outline,
-      referral_bonus_rate,
+      referral_bonus_rate: numericReferralRate,
       brand_id: brandId,
       status: "active",
     })
@@ -355,7 +457,7 @@ export async function submitVideo({
         video_url: finalVideoUrl,
         file_path: filePath,
         transcription,
-        status: "active",
+        status: "pending",
       })
       .select()
       .single()
@@ -378,13 +480,17 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!user?.id) {
+    return []
+  }
+
   const { data: campaigns } = await supabase
     .from("campaigns")
     .select(
       `
       *,
       brand:brands!inner (
-        id,
+        payment_verified,
         brand_profile:profiles!inner (
           organization_name
         )
@@ -399,29 +505,40 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     `
     )
     .eq("status", "active")
-    .eq("submissions.creator_id", user?.id)
     .order("created_at", { ascending: false })
 
+  console.log("Raw campaigns data:", JSON.stringify(campaigns, null, 2))
   if (!campaigns) return []
 
-  return campaigns.map((campaign) => ({
-    id: campaign.id,
-    title: campaign.title,
-    budget_pool: String(campaign.budget_pool),
-    rpm: String(campaign.rpm),
-    guidelines: campaign.guidelines,
-    video_outline: campaign.video_outline,
-    status: campaign.status,
-    brand: {
-      name: campaign.brand?.brand_profile?.organization_name || "Unknown Brand",
-    },
-    submission: campaign.submission?.[0] || null,
-  }))
+  const transformedCampaigns = campaigns.map((campaign) => {
+    console.log("Campaign brand data:", campaign.brand)
+    return {
+      id: campaign.id,
+      title: campaign.title,
+      budget_pool: String(campaign.budget_pool),
+      rpm: String(campaign.rpm),
+      guidelines: campaign.guidelines,
+      video_outline: campaign.video_outline,
+      status: campaign.status,
+      brand: {
+        name:
+          campaign.brand?.brand_profile?.organization_name || "Unknown Brand",
+        payment_verified: !!campaign.brand?.payment_verified,
+      },
+      submission: campaign.submission?.[0] || null,
+    }
+  })
+
+  console.log(
+    "Transformed campaigns:",
+    JSON.stringify(transformedCampaigns, null, 2)
+  )
+  return transformedCampaigns
 }
 
 export async function pollNewSubmissions(campaignIds: string[]) {
   const supabase = await createServerSupabaseClient()
-  const { data: newSubmissions, error } = await supabase
+  const { data, error } = await supabase
     .from("submissions")
     .select(
       `
@@ -434,8 +551,8 @@ export async function pollNewSubmissions(campaignIds: string[]) {
       views,
       creator_id,
       campaign_id,
-      creator:creator_profiles (
-        full_name:organization_name,
+      creator:creator_profiles(
+        organization_name,
         email
       )
     `
@@ -444,12 +561,13 @@ export async function pollNewSubmissions(campaignIds: string[]) {
     .in("campaign_id", campaignIds)
     .order("created_at", { ascending: false })
     .limit(1)
+    .returns<PollSubmissionResponse[]>()
 
   if (error) {
     throw error
   }
 
-  return newSubmissions
+  return data
 }
 
 export async function signOut() {
@@ -462,4 +580,83 @@ export async function signOut() {
 
   revalidatePath("/dashboard")
   return { success: true }
+}
+
+export const updateSubmissionVideoUrl = async (
+  submissionId: string,
+  videoUrl: string
+) => {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  // Update the submission with the new video URL
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({
+      video_url: videoUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", submissionId)
+    .eq("creator_id", user.id)
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+// Update the checkForNotifications function to use the notifications table
+export const checkForNotifications = async () => {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  const { data: notifications, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("recipient_id", user.id)
+    .eq("read", false)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return notifications
+}
+
+// Update the markNotificationAsSeen function to use the notifications table
+export const markNotificationAsSeen = async (notificationId: string) => {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("id", notificationId)
+    .eq("recipient_id", user.id)
+
+  if (error) {
+    throw error
+  }
 }
