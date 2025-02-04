@@ -1,5 +1,20 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
+import { Database } from "@/types/supabase"
+
+type Creator = Database["public"]["Tables"]["profiles"]["Row"] & {
+  submissions:
+    | {
+        count: number
+      }[]
+    | null
+  creators: {
+    stripe_account_id: string | null
+  } | null
+  auth_user: {
+    email: string | null
+  } | null
+}
 
 export default async function AdminCreatorsPage() {
   const supabase = await createServerSupabaseClient()
@@ -13,8 +28,20 @@ export default async function AdminCreatorsPage() {
 
   const { data: creators, error } = await supabase
     .from("profiles")
-    .select("*, submissions(count)")
+    .select(
+      `
+      *,
+      submissions(count),
+      creators!left (
+        stripe_account_id
+      ),
+      auth_user:id (
+        email
+      )
+    `
+    )
     .eq("user_type", "creator")
+    .returns<Creator[]>()
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -67,10 +94,10 @@ export default async function AdminCreatorsPage() {
                   {creator.organization_name || "Not set"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                  {creator.email}
+                  {creator.auth_user?.email}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                  {creator.stripe_account_id || "Not set"}
+                  {creator.creators?.stripe_account_id || "Not set"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                   {creator.submissions?.[0]?.count || 0}
