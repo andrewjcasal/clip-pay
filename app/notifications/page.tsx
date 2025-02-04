@@ -2,6 +2,10 @@ import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { NotificationsClient } from "./client"
 import { DashboardHeader } from "../dashboard/header"
+import { Database } from "@/types/supabase"
+
+type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"]
+type Notification = Omit<NotificationRow, "read"> & { read: boolean }
 
 export const dynamic = "force-dynamic"
 
@@ -18,8 +22,17 @@ export default async function NotificationsPage() {
   const { data: notifications } = await supabase
     .from("notifications")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("recipient_id", user.id)
     .order("created_at", { ascending: false })
+    .returns<NotificationRow[]>()
+
+  // Transform notifications to ensure read is boolean
+  const transformedNotifications: Notification[] = (notifications || []).map(
+    (n) => ({
+      ...n,
+      read: !!n.read,
+    })
+  )
 
   return (
     <div className="min-h-screen bg-[#313338]">
@@ -34,7 +47,7 @@ export default async function NotificationsPage() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto p-4">
-        <NotificationsClient notifications={notifications || []} />
+        <NotificationsClient notifications={transformedNotifications} />
       </div>
     </div>
   )
