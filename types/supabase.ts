@@ -110,6 +110,7 @@ export type Database = {
           title: string
           updated_at: string
           video_outline: string | null
+          referral_bonus_rate: number
         }
         Insert: {
           brand_id: string
@@ -122,6 +123,7 @@ export type Database = {
           title: string
           updated_at?: string
           video_outline?: string | null
+          referral_bonus_rate: number
         }
         Update: {
           brand_id?: string
@@ -134,6 +136,7 @@ export type Database = {
           title?: string
           updated_at?: string
           video_outline?: string | null
+          referral_bonus_rate?: number
         }
         Relationships: [
           {

@@ -2,21 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-
-interface Campaign {
-  id: string
-  title: string
-  budget_pool: string
-  rpm: string
-  guidelines: string
-  status: string
-  referral_bonus_rate: number
-  brand: {
-    profiles: {
-      organization_name: string
-    }
-  }
-}
+import { Campaign } from "@/types/database"
 
 interface PublicCampaignViewProps {
   campaign: Campaign
@@ -67,7 +53,7 @@ export function PublicCampaignView({ campaign }: PublicCampaignViewProps) {
                 <h3 className="text-lg font-medium text-white">Guidelines</h3>
                 <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
                   <p className="text-sm text-zinc-300 whitespace-pre-wrap">
-                    {campaign.guidelines}
+                    {campaign.guidelines || "No guidelines provided"}
                   </p>
                 </div>
               </div>
