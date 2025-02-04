@@ -11,7 +11,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Campaign } from "./page"
 import { formatDistanceToNow } from "date-fns"
 import ReactPlayer from "react-player"
 import {
@@ -22,15 +21,7 @@ import {
   signOut,
 } from "./actions"
 import { useRouter } from "next/navigation"
-import { Bell, Settings, X, LogOut } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
 
 type SubmissionCreator = {

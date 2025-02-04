@@ -7,7 +7,6 @@ import { promisify } from "util"
 import { join } from "path"
 import { unlink } from "fs/promises"
 import { Deepgram } from "@deepgram/sdk"
-import { Alternatives } from "@deepgram/sdk/dist/enums"
 import { Database } from "@/types/supabase"
 
 const execAsync = promisify(exec)
@@ -19,15 +18,6 @@ if (!DEEPGRAM_API_KEY) {
 }
 
 const deepgram = new Deepgram(DEEPGRAM_API_KEY)
-
-type BrandProfile = {
-  brand: {
-    user_id: string
-    profiles: {
-      organization_name: string
-    }
-  }
-}
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type Brand = Database["public"]["Tables"]["brands"]["Row"]
@@ -289,33 +279,17 @@ async function processVideo(
   userId: string
 ): Promise<{ audioPath: string; transcription: string }> {
   try {
-    console.log("Starting video processing for path:", videoPath)
-
     // Create unique names for the audio file
     const audioFileName = `${userId}_${Date.now()}.wav` // Changed to WAV for better quality
     const audioPath = join("/tmp", audioFileName)
-    console.log("Will extract audio to:", audioPath)
 
     // Extract audio using ffmpeg with improved parameters
-    console.log("Running ffmpeg command...")
     const ffmpegCommand = `ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 44100 -ac 2 -af "volume=1.5" "${audioPath}"`
-    console.log("FFmpeg command:", ffmpegCommand)
     const { stdout, stderr } = await execAsync(ffmpegCommand)
-    if (stderr) {
-      console.log("ffmpeg stderr:", stderr)
-    }
-    console.log("ffmpeg stdout:", stdout)
-
-    // Verify audio file exists and has content
-    const audioStats = await readFile(audioPath)
-    console.log("Extracted audio file size:", audioStats.length, "bytes")
-
     // Read the audio file
     const audioFile = await readFile(audioPath)
-    console.log("Successfully read audio file")
 
     // Transcribe using Deepgram with more options
-    console.log("Sending to Deepgram for transcription...")
     const response = await deepgram.transcription.preRecorded(
       { buffer: audioFile, mimetype: "audio/wav" },
       {
@@ -332,8 +306,6 @@ async function processVideo(
       }
     )
 
-    console.log("Full Deepgram response:", JSON.stringify(response, null, 2))
-
     if (!response.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
       console.error("No transcript in response. Full response:", response)
       throw new Error("Failed to get transcription from Deepgram")
@@ -341,7 +313,6 @@ async function processVideo(
 
     // Clean up the audio file
     await unlink(audioPath)
-    console.log("Cleaned up temporary audio file")
 
     return {
       audioPath,
@@ -507,11 +478,9 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     .eq("status", "active")
     .order("created_at", { ascending: false })
 
-  console.log("Raw campaigns data:", JSON.stringify(campaigns, null, 2))
   if (!campaigns) return []
 
   const transformedCampaigns = campaigns.map((campaign) => {
-    console.log("Campaign brand data:", campaign.brand)
     return {
       id: campaign.id,
       title: campaign.title,
@@ -529,10 +498,6 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
     }
   })
 
-  console.log(
-    "Transformed campaigns:",
-    JSON.stringify(transformedCampaigns, null, 2)
-  )
   return transformedCampaigns
 }
 

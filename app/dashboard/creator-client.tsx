@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Upload, Bell, Settings, Share, LogOut } from "lucide-react"
+import { Upload, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,7 +21,6 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Campaign {
@@ -44,6 +43,11 @@ interface Campaign {
   } | null
 }
 
+interface NotificationMetadata {
+  campaign_title?: string
+  submission_id?: string
+}
+
 interface CreatorDashboardClientProps {
   transformedCampaigns: Campaign[]
   email: string
@@ -54,7 +58,6 @@ export function CreatorDashboardClient({
   email,
 }: CreatorDashboardClientProps) {
   const [campaigns, setCampaigns] = useState(transformedCampaigns)
-  console.log("campaigns", campaigns)
   const [newCampaigns, setNewCampaigns] = useState<Campaign[]>([])
   const [hasNewCampaigns, setHasNewCampaigns] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
@@ -69,8 +72,6 @@ export function CreatorDashboardClient({
   )
   const [isDragging, setIsDragging] = useState(false)
   const [copiedCampaign, setCopiedCampaign] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
@@ -82,8 +83,9 @@ export function CreatorDashboardClient({
         const notifications = await checkForNotifications()
         if (notifications && notifications.length > 0) {
           notifications.forEach(async (notification) => {
+            const metadata = notification.metadata as NotificationMetadata
             toast.success(
-              `Your video for campaign "${notification.campaign.title}" has been approved!`,
+              `Your video for campaign "${metadata?.campaign_title}" has been approved!`,
               {
                 description:
                   "You can now add your public video URL to start earning.",
@@ -92,7 +94,9 @@ export function CreatorDashboardClient({
                   label: "View Campaign",
                   onClick: () => {
                     const campaign = campaigns.find(
-                      (c) => c.submission && c.submission.id === notification.id
+                      (c) =>
+                        c.submission &&
+                        c.submission.id === metadata?.submission_id
                     )
                     if (campaign) {
                       setSelectedCampaign(campaign)
@@ -233,54 +237,10 @@ export function CreatorDashboardClient({
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      router.push("/signin")
-    } catch (error) {
-      console.error("Error logging out:", error)
-      toast.error("Failed to log out")
-    }
-  }
-
   const handleCopy = (text: string, campaignId: string) => {
     navigator.clipboard.writeText(text)
     setCopiedCampaign(campaignId)
     setTimeout(() => setCopiedCampaign(""), 2000)
-  }
-
-  const handleShare = async (campaignId: string) => {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
-
-    // Get user's referral code
-    const { data: referralData } = await supabase
-      .from("referrals")
-      .select("code")
-      .eq("profile_id", user.id)
-      .single()
-
-    const shareUrl = `${window.location.origin}/signup?ref=${referralData?.code}&campaign=${campaignId}`
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Join Creator Platform",
-          text: "Check out this campaign opportunity!",
-          url: shareUrl,
-        })
-      } catch (err) {
-        // If share fails or user cancels, fall back to copying the link
-        handleCopy(shareUrl, campaignId)
-      }
-    } else {
-      // If Web Share API is not available, copy the link
-      handleCopy(shareUrl, campaignId)
-    }
   }
 
   const handleUpdateVideoUrl = async (submissionId: string) => {

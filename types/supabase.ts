@@ -157,6 +157,7 @@ export type Database = {
           payment_verified: boolean | null
           updated_at: string
           user_type: string | null
+          referred_by: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -168,6 +169,7 @@ export type Database = {
           payment_verified?: boolean | null
           updated_at?: string
           user_type?: string | null
+          referred_by?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -179,8 +181,17 @@ export type Database = {
           payment_verified?: boolean | null
           updated_at?: string
           user_type?: string | null
+          referred_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       submissions: {
         Row: {
@@ -270,6 +281,35 @@ export type Database = {
           {
             foreignKeyName: "notifications_recipient_id_fkey"
             columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      referrals: {
+        Row: {
+          id: string
+          created_at: string
+          code: string
+          profile_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          code: string
+          profile_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          code?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

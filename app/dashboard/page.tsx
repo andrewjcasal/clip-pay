@@ -7,6 +7,7 @@ import { getBrandCampaigns } from "./brand-campaigns"
 
 export interface Brand {
   name: string
+  payment_verified: boolean
 }
 
 export interface Submission {
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
     )
   }
 
-  let brandId = null
+  let brandId: string | null = null
   if (profile?.user_type === "brand") {
     const { data: brand } = await supabase
       .from("brands")
@@ -74,12 +75,12 @@ export default async function DashboardPage() {
       .eq("user_id", user.id)
       .single()
 
-    brandId = brand?.id
+    brandId = brand?.id || null
   }
 
   return (
     <div className="min-h-screen bg-[#313338]">
-      {profile?.user_type === "brand" ? (
+      {profile?.user_type === "brand" && brandId ? (
         <DashboardClient
           initialCampaigns={await getBrandCampaigns()}
           brandId={brandId}

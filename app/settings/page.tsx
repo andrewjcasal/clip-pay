@@ -12,13 +12,6 @@ export default async function SettingsPage() {
     redirect("/signin")
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_type")
-    .eq("id", user.id)
-    .single()
-
   return (
     <div className="min-h-screen bg-[#313338]">
       <div className="ml-64">
@@ -33,10 +26,7 @@ export default async function SettingsPage() {
               </p>
             </div>
 
-            <SettingsForm
-              email={user.email || ""}
-              userType={profile?.user_type as "creator" | "brand"}
-            />
+            <SettingsForm email={user.email || ""} />
           </div>
         </div>
       </div>

@@ -1,7 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -13,8 +11,6 @@ import { CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
 export function ConfirmationForm() {
-  const router = useRouter()
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
       {/* Animated Background Image */}

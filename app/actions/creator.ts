@@ -2,6 +2,11 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
+import { Database } from "@/types/supabase"
+
+interface ReferralData {
+  profile_id: string
+}
 
 export async function updateCreatorProfile(
   organizationName: string,
@@ -24,15 +29,40 @@ export async function updateCreatorProfile(
         .from("referrals")
         .select("profile_id")
         .eq("code", referralCode)
-        .single()
+        .maybeSingle<ReferralData>()
 
       if (referralError) {
-        if (referralError.code === "PGRST116") {
-          return { success: false, error: "Invalid referral code" }
-        }
-        throw referralError
+        console.error("Error checking referral code:", referralError)
+        return { success: false, error: "Invalid referral code" }
       }
+
+      if (!referralData) {
+        return { success: false, error: "Invalid referral code" }
+      }
+
       referrerId = referralData.profile_id
+
+      // Create notification for referrer
+      const { error: notificationError } = await supabase
+        .from("notifications")
+        .insert({
+          recipient_id: referrerId,
+          type: "new_referral",
+          title: "New Creator Referral",
+          message: `${organizationName} has joined using your referral code!`,
+          metadata: {
+            referred_creator_id: user.id,
+            referred_creator_name: organizationName,
+          },
+        } satisfies Database["public"]["Tables"]["notifications"]["Insert"])
+
+      if (notificationError) {
+        console.error(
+          "Error creating referral notification:",
+          notificationError
+        )
+        // Don't throw here, as we still want to complete the profile update
+      }
     }
 
     // Update profile with organization name and referral info
@@ -43,7 +73,7 @@ export async function updateCreatorProfile(
         referred_by: referrerId,
         onboarding_completed: true,
         user_type: "creator",
-      })
+      } satisfies Database["public"]["Tables"]["profiles"]["Update"])
       .eq("id", user.id)
 
     if (updateError) throw updateError
@@ -53,13 +83,35 @@ export async function updateCreatorProfile(
       .from("creators")
       .insert({
         user_id: user.id,
-      })
+      } satisfies Database["public"]["Tables"]["creators"]["Insert"])
       .select()
       .single()
 
     if (creatorError && creatorError.code !== "23505") {
       // Ignore unique constraint violations
       throw creatorError
+    }
+
+    // Create welcome notification for the new creator
+    const { error: welcomeNotificationError } = await supabase
+      .from("notifications")
+      .insert({
+        recipient_id: user.id,
+        type: "welcome",
+        title: "Welcome to Creator Pay!",
+        message:
+          "Your creator profile has been set up successfully. Start exploring campaigns and submitting videos!",
+        metadata: {
+          organization_name: organizationName,
+        },
+      } satisfies Database["public"]["Tables"]["notifications"]["Insert"])
+
+    if (welcomeNotificationError) {
+      console.error(
+        "Error creating welcome notification:",
+        welcomeNotificationError
+      )
+      // Don't throw here, as the profile update was successful
     }
 
     revalidatePath("/onboarding/creator")

@@ -4,7 +4,6 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import ReactPlayer from "react-player"
 
 interface Submission {
   id: string

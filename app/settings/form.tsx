@@ -9,10 +9,9 @@ import { updateUserEmail, updateUserPassword } from "./actions"
 
 interface SettingsFormProps {
   email: string
-  userType: "creator" | "brand"
 }
 
-export function SettingsForm({ email, userType }: SettingsFormProps) {
+export function SettingsForm({ email }: SettingsFormProps) {
   const [newEmail, setNewEmail] = useState(email)
   const [newPassword, setNewPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
