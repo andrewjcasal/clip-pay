@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { AdminNav } from "./components/admin-nav"
+import { Database } from "@/types/supabase"
 
 export default async function AdminLayout({
   children,
@@ -17,13 +18,14 @@ export default async function AdminLayout({
   }
 
   // Check if user is admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
+  const { data: admin, error } = await supabase
+    .from("admins")
+    .select()
+    .eq("user_id", user.id)
     .single()
 
-  if (!profile?.is_admin) {
+  if (error || !admin) {
+    console.error("Error fetching admin status:", error)
     redirect("/dashboard")
   }
 

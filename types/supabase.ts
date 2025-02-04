@@ -34,6 +34,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      admins: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       brands: {
         Row: {
           created_at: string
@@ -158,6 +184,7 @@ export type Database = {
           updated_at: string
           user_type: string | null
           referred_by: string | null
+          is_admin: boolean | null
         }
         Insert: {
           avatar_url?: string | null
@@ -170,6 +197,7 @@ export type Database = {
           updated_at?: string
           user_type?: string | null
           referred_by?: string | null
+          is_admin?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -182,6 +210,7 @@ export type Database = {
           updated_at?: string
           user_type?: string | null
           referred_by?: string | null
+          is_admin?: boolean | null
         }
         Relationships: [
           {
