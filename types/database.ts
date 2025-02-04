@@ -1,14 +1,14 @@
-import { Database } from './supabase'
+import { Database } from "./supabase"
 
 // Extract the campaigns table type
-type CampaignRow = Database['public']['Tables']['campaigns']['Row']
-type BrandRow = Database['public']['Tables']['brands']['Row']
-type ProfileRow = Database['public']['Tables']['profiles']['Row']
+type CampaignRow = Database["public"]["Tables"]["campaigns"]["Row"]
+type BrandRow = Database["public"]["Tables"]["brands"]["Row"]
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"]
 
 // Define the Campaign type with its relations
 export type Campaign = CampaignRow & {
   brand: {
-    profiles: Pick<ProfileRow, 'organization_name'>
+    profiles: Pick<ProfileRow, "organization_name">
   }
 }
 
@@ -31,4 +31,4 @@ export type CampaignWithSubmissions = Campaign & {
   activeSubmissionsCount: number
 }
 
-// Add other types as needed... 
+// Add other types as needed...

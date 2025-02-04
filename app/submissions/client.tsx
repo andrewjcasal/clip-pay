@@ -4,29 +4,23 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
+import { Database } from "@/types/supabase"
 
-interface Submission {
-  id: string
-  status: string
-  video_url: string | null
-  file_path: string | null
-  created_at: string
-  views: number
-  campaign: {
-    id: string
-    title: string
-    rpm: string
+type Tables = Database["public"]["Tables"]
+type SubmissionRow = Tables["submissions"]["Row"]
+type CampaignRow = Tables["campaigns"]["Row"]
+type ProfileRow = Tables["profiles"]["Row"]
+
+interface SubmissionWithCampaign extends SubmissionRow {
+  campaign: Pick<CampaignRow, "id" | "title" | "rpm"> & {
     brand: {
-      profiles: {
-        organization_name: string
-      }[]
+      profiles: Pick<ProfileRow, "organization_name">[]
     }
   }
-  transcription: string | null
 }
 
 interface SubmissionsClientProps {
-  submissions: Submission[]
+  submissions: SubmissionWithCampaign[]
 }
 
 export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
@@ -34,7 +28,7 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
     id: string
     title: string
     brand: string
-    rpm: string
+    rpm: number
   } | null>(null)
 
   return (
@@ -57,7 +51,8 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                       {submission.campaign.title}
                     </h3>
                     <p className="text-sm text-zinc-400">
-                      {submission.campaign.brand.profiles[0]?.organization_name}
+                      {submission.campaign.brand.profiles[0]
+                        ?.organization_name || "Unknown Brand"}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-zinc-500">
@@ -68,7 +63,7 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                       </span>
                       <span className="text-xs text-zinc-500">•</span>
                       <span className="text-xs text-zinc-500">
-                        {submission.views.toLocaleString()} views
+                        {(submission.views || 0).toLocaleString()} views
                       </span>
                       <span className="text-xs text-zinc-500">•</span>
                       <span className="text-xs text-zinc-500">
@@ -94,12 +89,14 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                 <div className="flex gap-6">
                   <div className="w-2/3">
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-                      <iframe
-                        src={submission.video_url as string}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      ></iframe>
+                      {submission.video_url && (
+                        <iframe
+                          src={submission.video_url}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      )}
                     </div>
                   </div>
                   <div className="w-1/3 bg-[#1E1F22] rounded-lg p-4">

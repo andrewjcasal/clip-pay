@@ -2,6 +2,20 @@ import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { SubmissionsClient } from "./client"
+import { Database } from "@/types/supabase"
+
+type Tables = Database["public"]["Tables"]
+type SubmissionRow = Tables["submissions"]["Row"]
+type CampaignRow = Tables["campaigns"]["Row"]
+type ProfileRow = Tables["profiles"]["Row"]
+
+interface SubmissionWithCampaign extends SubmissionRow {
+  campaign: Pick<CampaignRow, "id" | "title" | "rpm"> & {
+    brand: {
+      profiles: Pick<ProfileRow, "organization_name">[]
+    }
+  }
+}
 
 export default async function SubmissionsPage() {
   const supabase = await createServerSupabaseClient()
@@ -43,6 +57,7 @@ export default async function SubmissionsPage() {
     )
     .eq("creator_id", user.id)
     .order("created_at", { ascending: false })
+    .returns<SubmissionWithCampaign[]>()
 
   if (submissionsError) {
     console.error("Error fetching submissions:", submissionsError)
