@@ -1,4 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
+import { Database } from "@/types/supabase"
+
+type Brand = Database["public"]["Tables"]["brands"]["Row"] & {
+  profiles: {
+    email: string | null
+    organization_name: string | null
+  } | null
+}
 
 export default async function AdminBrandsPage() {
   const supabase = await createServerSupabaseClient()
@@ -14,6 +22,7 @@ export default async function AdminBrandsPage() {
       )
     `
     )
+    .returns<Brand[]>()
     .order("created_at", { ascending: false })
 
   if (error) {
