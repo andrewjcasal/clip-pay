@@ -239,6 +239,8 @@ export type Database = {
           views: number
           payout_status: string | null
           payout_due_date: string | null
+          earned: number | null
+          payout_transfer_id: string | null
         }
         Insert: {
           id?: string
@@ -253,6 +255,8 @@ export type Database = {
           views?: number
           payout_status?: string | null
           payout_due_date?: string | null
+          earned?: number | null
+          payout_transfer_id?: string | null
         }
         Update: {
           id?: string
@@ -267,6 +271,8 @@ export type Database = {
           views?: number
           payout_status?: string | null
           payout_due_date?: string | null
+          earned?: number | null
+          payout_transfer_id?: string | null
         }
         Relationships: [
           {

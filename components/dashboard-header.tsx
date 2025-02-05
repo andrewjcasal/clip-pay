@@ -45,9 +45,14 @@ export function DashboardHeader({
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              {userType === "creator" ? "Creator" : "Brand"} Platform
-            </h1>
+            <Link
+              href="/dashboard"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <h1 className="text-2xl font-bold text-white">
+                {userType === "creator" ? "Creator" : "Brand"} Platform
+              </h1>
+            </Link>
           </div>
           <div className="flex items-center gap-6">
             <Link

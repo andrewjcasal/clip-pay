@@ -66,45 +66,124 @@ type PollSubmissionResponse = {
 export async function approveSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()
 
+  try {
+    // Get submission and campaign details first
+    const { data: submission, error: submissionError } = await supabase
+      .from("submissions")
+      .select(
+        `
+        id,
+        creator_id,
+        campaign:campaigns (
+          title
+        )
+      `
+      )
+      .eq("id", submissionId)
+      .single()
+
+    if (submissionError) {
+      console.error("Error fetching submission:", submissionError)
+      throw new Error(`Failed to fetch submission: ${submissionError.message}`)
+    }
+
+    if (!submission) {
+      throw new Error("Submission not found")
+    }
+
+    // Get payout duration from env (default to 7 days for production)
+    const payoutDurationMinutes = Number(
+      process.env.NEXT_PUBLIC_PAYOUT_DURATION_MINUTES || "10080"
+    )
+
+    // Calculate due date
+    const payoutDueDate = new Date()
+    payoutDueDate.setMinutes(payoutDueDate.getMinutes() + payoutDurationMinutes)
+    // Update submission status
+    const { data: updateData, error: updateError } = await supabase
+      .from("submissions")
+      .update({
+        status: "approved",
+        payout_due_date: payoutDueDate.toISOString(),
+        payout_status: "pending",
+      })
+      .eq("id", submissionId)
+      .select()
+
+    if (updateError) {
+      console.error("Error updating submission:", updateError)
+      throw new Error(`Failed to update submission: ${updateError.message}`)
+    }
+
+    if (!updateData) {
+      console.error("No data returned from update")
+      throw new Error("Failed to update submission: No data returned")
+    }
+
+    // Create a notification for the creator
+    const { error: notificationError } = await supabase
+      .from("notifications")
+      .insert({
+        recipient_id: submission.creator_id,
+        type: "submission_approved",
+        title: "Submission Approved",
+        message: `Your submission for campaign "${submission.campaign.title}" has been approved!`,
+        metadata: {
+          submission_id: submissionId,
+          campaign_title: submission.campaign.title,
+        },
+      })
+
+    if (notificationError) {
+      console.error("Error creating notification:", notificationError)
+      // Don't throw here, as the submission was already approved
+    }
+
+    revalidatePath("/dashboard")
+  } catch (error) {
+    console.error("Error in approveSubmission:", error)
+    throw error
+  }
+}
+
+export async function rejectSubmission(submissionId: string) {
+  const supabase = await createServerSupabaseClient()
+
   // Get submission and campaign details first
-  const { data: submission } = await supabase
+  const { data: submission, error: submissionError } = await supabase
     .from("submissions")
     .select(
       `
       id,
       creator_id,
       campaign:campaigns (
-        title
+        id,
+        title,
+        brand_id
       )
     `
     )
     .eq("id", submissionId)
     .single()
 
+  if (submissionError) {
+    console.error("Error fetching submission:", submissionError)
+    throw new Error(`Failed to fetch submission: ${submissionError.message}`)
+  }
+
   if (!submission) {
     throw new Error("Submission not found")
   }
 
-  // Get payout duration from env (default to 7 days for production)
-  const payoutDurationMinutes = Number(
-    process.env.NEXT_PUBLIC_PAYOUT_DURATION_MINUTES || "10080"
-  )
-
-  // Calculate due date
-  const payoutDueDate = new Date()
-  payoutDueDate.setMinutes(payoutDueDate.getMinutes() + payoutDurationMinutes)
-
-  const { error } = await supabase
+  // Update the submission status
+  const { data, error } = await supabase
     .from("submissions")
-    .update({
-      status: "approved",
-      payout_due_date: payoutDueDate.toISOString(),
-      payout_status: "pending",
-    })
+    .update({ status: "rejected" })
     .eq("id", submissionId)
+    .select()
 
   if (error) {
-    console.error("Error approving submission:", error)
+    console.error("Error rejecting submission:", error)
     throw error
   }
 
@@ -113,9 +192,9 @@ export async function approveSubmission(submissionId: string) {
     .from("notifications")
     .insert({
       recipient_id: submission.creator_id,
-      type: "submission_approved",
-      title: "Submission Approved",
-      message: `Your submission for campaign "${submission.campaign.title}" has been approved!`,
+      type: "submission_rejected",
+      title: "Submission Rejected",
+      message: `Your submission for campaign "${submission.campaign.title}" was not approved.`,
       metadata: {
         submission_id: submissionId,
         campaign_title: submission.campaign.title,
@@ -124,44 +203,7 @@ export async function approveSubmission(submissionId: string) {
 
   if (notificationError) {
     console.error("Error creating notification:", notificationError)
-    // Don't throw here, as the submission was already approved
-  }
-
-  revalidatePath("/dashboard")
-}
-
-export async function rejectSubmission(submissionId: string) {
-  const supabase = await createServerSupabaseClient()
-
-  // Try a simpler select first to verify the submission
-  const { error: checkError } = await supabase
-    .from("submissions")
-    .select(
-      `
-      id,
-      campaign_id,
-      status,
-      campaign:campaigns (
-        id,
-        brand_id
-      )
-    `
-    )
-    .eq("id", submissionId)
-
-  if (checkError) {
-    throw new Error(`Error checking submission: ${checkError.message}`)
-  }
-
-  // Then try the update
-  const { data, error } = await supabase
-    .from("submissions")
-    .update({ status: "rejected" })
-    .eq("id", submissionId)
-
-  if (error) {
-    console.error("Error rejecting submission:", error)
-    throw error
+    // Don't throw here, as the submission was already rejected
   }
 
   revalidatePath("/dashboard")
@@ -285,7 +327,7 @@ async function processVideo(
 
     // Extract audio using ffmpeg with improved parameters
     const ffmpegCommand = `ffmpeg -i "${videoPath}" -vn -acodec pcm_s16le -ar 44100 -ac 2 -af "volume=1.5" "${audioPath}"`
-    const { stdout, stderr } = await execAsync(ffmpegCommand)
+    await execAsync(ffmpegCommand)
     // Read the audio file
     const audioFile = await readFile(audioPath)
 
@@ -347,17 +389,6 @@ export async function submitVideo({
 
     if (!user) {
       throw new Error("Not authenticated")
-    }
-
-    // Get the creator's profile
-    const { data: profile } = await supabase
-      .from("creator_profiles")
-      .select()
-      .eq("user_id", user.id)
-      .single()
-
-    if (!profile) {
-      throw new Error("Creator profile not found")
     }
 
     // Ensure user is a creator type

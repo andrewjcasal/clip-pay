@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         creator_id: user.id,
         video_url,
         file_path,
-        status: "active",
+        status: "pending",
       })
       .select()
       .single()

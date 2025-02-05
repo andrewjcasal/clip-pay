@@ -18,7 +18,6 @@ import {
   rejectSubmission,
   createCampaign,
   pollNewSubmissions,
-  signOut,
 } from "./actions"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -82,14 +81,6 @@ interface FormErrors {
   guidelines?: boolean
 }
 
-interface DashboardHeaderProps {
-  userType: "brand" | "creator"
-  email: string
-  onRefresh?: () => void
-  showRefreshButton?: boolean
-  refreshButtonText?: string
-}
-
 export function DashboardClient({
   initialCampaigns,
   brandId,
@@ -110,8 +101,7 @@ export function DashboardClient({
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
-  const [hasNewSubmission, setHasNewSubmission] = useState(false)
-  const [hasNewCampaigns, setHasNewCampaigns] = useState(false)
+  const [hasNewCampaigns] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const router = useRouter()
 
@@ -173,7 +163,6 @@ export function DashboardClient({
           )
 
           if (hasNewNonDuplicateSubmissions) {
-            setHasNewSubmission(true)
             toast.success("New submission received!", {
               description:
                 "A creator has submitted a video to one of your campaigns.",
@@ -273,9 +262,8 @@ export function DashboardClient({
 
       // Update local state
       setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) => ({
-          ...campaign,
-          submissions: campaign.submissions.map((submission) =>
+        prevCampaigns.map((campaign) => {
+          const updatedSubmissions = campaign.submissions.map((submission) =>
             submission.id === submissionId
               ? {
                   ...submission,
@@ -283,11 +271,21 @@ export function DashboardClient({
                   payout_status: "pending",
                 }
               : submission
-          ),
-        }))
+          )
+          return {
+            ...campaign,
+            submissions: updatedSubmissions,
+            activeSubmissionsCount: updatedSubmissions.filter(
+              (s) => s.status === "active"
+            ).length,
+          }
+        })
       )
+
+      toast.success("Submission approved successfully")
     } catch (error) {
       console.error("Error approving submission:", error)
+      toast.error("Failed to approve submission")
     }
   }
 
@@ -308,16 +306,6 @@ export function DashboardClient({
       )
     } catch (error) {
       console.error("Error rejecting submission:", error)
-    }
-  }
-
-  const handleLogout = async () => {
-    try {
-      await signOut()
-      router.push("/signin")
-    } catch (error) {
-      console.error("Error logging out:", error)
-      toast.error("Failed to log out")
     }
   }
 
@@ -420,17 +408,12 @@ export function DashboardClient({
                 <div className="space-y-3 flex-1">
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-semibold text-white group-hover:text-[#5865F2] transition-colors">
+                      <button
+                        onClick={() => setSelectedCampaign(campaign)}
+                        className="text-xl font-semibold text-white group-hover:text-[#5865F2] transition-colors hover:text-[#5865F2]"
+                      >
                         {campaign.title}
-                      </h3>
-                      {campaign.submissions.length > 0 && (
-                        <span className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] text-sm font-medium rounded-full border border-[#5865F2]/20">
-                          {campaign.submissions.length}{" "}
-                          {campaign.submissions.length === 1
-                            ? "submission"
-                            : "submissions"}
-                        </span>
-                      )}
+                      </button>
                     </div>
                     <div className="flex items-center flex-wrap gap-2 text-sm">
                       <span className="text-zinc-400">
@@ -439,28 +422,6 @@ export function DashboardClient({
                           ${campaign.rpm}
                         </span>
                       </span>
-                      <span className="text-zinc-400">•</span>
-                      <span className="text-zinc-400">
-                        Status:{" "}
-                        <span
-                          className={`font-medium capitalize ${
-                            campaign.status === "active"
-                              ? "text-green-400"
-                              : "text-yellow-400"
-                          }`}
-                        >
-                          {campaign.status}
-                        </span>
-                      </span>
-                      {campaign.brand.payment_verified && (
-                        <>
-                          <span className="text-zinc-400">•</span>
-                          <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full text-xs font-medium border border-emerald-500/20">
-                            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Payment Verified
-                          </span>
-                        </>
-                      )}
                     </div>
                   </div>
 
@@ -470,50 +431,73 @@ export function DashboardClient({
                       {campaign.guidelines}
                     </p>
                   </div>
-
-                  {campaign.submissions.length > 0 && (
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-zinc-400">Recent activity:</span>
-                        <div className="flex -space-x-2">
-                          {campaign.submissions
-                            .slice(0, 3)
-                            .map((submission, index) => (
-                              <div
-                                key={`${campaign.id}-${submission.id}-avatar-${index}`}
-                                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 border-[#2B2D31] ${
-                                  submission.status === "pending"
-                                    ? "bg-yellow-500/20 text-yellow-500"
-                                    : submission.status === "approved"
-                                      ? "bg-green-500/20 text-green-500"
-                                      : "bg-red-500/20 text-red-500"
-                                }`}
-                              >
-                                {submission.creator.full_name?.[0] || "?"}
-                              </div>
-                            ))}
-                        </div>
-                        {campaign.submissions.length > 3 && (
-                          <span className="text-zinc-500">
-                            +{campaign.submissions.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCampaign(campaign)}
-                  className="shrink-0 bg-black/20 text-white hover:bg-black/30 hover:text-white border-zinc-800"
-                >
-                  View Details
-                </Button>
+                <div className="flex flex-col items-end gap-3">
+                  <div className="flex items-center gap-2">
+                    {campaign.submissions.length > 0 && (
+                      <span className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] text-sm font-medium rounded-full border border-[#5865F2]/20">
+                        {campaign.submissions.length}{" "}
+                        {campaign.submissions.length === 1
+                          ? "submission"
+                          : "submissions"}
+                      </span>
+                    )}
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium ${
+                        campaign.status === "active"
+                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                      }`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          campaign.status === "active"
+                            ? "bg-green-400"
+                            : "bg-yellow-400"
+                        } animate-pulse`}
+                      ></span>
+                      {campaign.status}
+                    </span>
+                  </div>
+
+                  {campaign.submissions.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {campaign.submissions
+                          .slice(0, 3)
+                          .map((submission, index) => (
+                            <div
+                              key={`${campaign.id}-${submission.id}-avatar-${index}`}
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 border-[#2B2D31] ${
+                                submission.status === "pending"
+                                  ? "bg-yellow-500/20 text-yellow-500"
+                                  : submission.status === "approved"
+                                    ? "bg-green-500/20 text-green-500"
+                                    : "bg-red-500/20 text-red-500"
+                              }`}
+                            >
+                              {submission.creator.full_name?.[0] || "?"}
+                            </div>
+                          ))}
+                      </div>
+                      {campaign.submissions.length > 3 && (
+                        <span className="text-xs text-zinc-500">
+                          +{campaign.submissions.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedCampaign(campaign)}
+                    className="shrink-0 bg-black/20 text-white hover:bg-black/30 hover:text-white border-zinc-800"
+                  >
+                    View Details
+                  </Button>
+                </div>
               </div>
-              {campaign.submissions.some((s) => s.status === "pending") && (
-                <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-yellow-400 animate-pulse m-2"></div>
-              )}
             </div>
           ))}
         </div>
@@ -794,90 +778,115 @@ export function DashboardClient({
                     Submissions ({selectedCampaign.submissions.length})
                   </h3>
                   <div className="space-y-4">
-                    {selectedCampaign.submissions.map((submission) => (
-                      <div
-                        key={`${selectedCampaign.id}-${submission.id}-details`}
-                        className="bg-black/20 rounded-lg p-4 space-y-3"
-                      >
-                        {submission.video_url && (
-                          <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/40">
-                            <ReactPlayer
-                              url={submission.video_url}
-                              width="100%"
-                              height="100%"
-                              controls
-                            />
-                          </div>
-                        )}
+                    {selectedCampaign.submissions
+                      .sort((a, b) => {
+                        // Sort pending submissions to the top
+                        if (a.status === "pending" && b.status !== "pending")
+                          return -1
+                        if (a.status !== "pending" && b.status === "pending")
+                          return 1
+                        // For non-pending submissions, sort by most recent first
+                        return (
+                          new Date(b.created_at).getTime() -
+                          new Date(a.created_at).getTime()
+                        )
+                      })
+                      .map((submission) => (
+                        <div
+                          key={`${selectedCampaign.id}-${submission.id}-details`}
+                          className="bg-black/20 rounded-lg p-4 space-y-3"
+                        >
+                          {submission.video_url && (
+                            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/40">
+                              <ReactPlayer
+                                url={submission.video_url}
+                                width="100%"
+                                height="100%"
+                                controls
+                              />
+                            </div>
+                          )}
 
-                        {submission.status === "pending" && (
-                          <div className="flex items-center gap-3">
-                            <Button
-                              onClick={() => handleApprove(submission.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                            >
-                              Approve Submission
-                            </Button>
-                            <Button
-                              onClick={() => handleReject(submission.id)}
-                              variant="outline"
-                              className="border-red-600 text-red-600 hover:bg-red-600/10 flex-1"
-                            >
-                              Reject Submission
-                            </Button>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-white">
-                              {submission.creator.full_name || "Anonymous"}
-                            </p>
-                            <p className="text-sm text-zinc-400">
-                              {submission.creator.email}
-                            </p>
-                            <p className="text-sm text-zinc-400">
-                              Submitted{" "}
-                              {formatDistanceToNow(
-                                new Date(submission.created_at)
-                              )}{" "}
-                              ago
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {submission.status !== "pending" && (
+                          {submission.status === "pending" ? (
+                            <div className="flex items-center gap-3">
+                              <Button
+                                onClick={() => handleApprove(submission.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                              >
+                                Approve Submission
+                              </Button>
+                              <Button
+                                onClick={() => handleReject(submission.id)}
+                                variant="outline"
+                                className="border-red-600 text-red-600 hover:bg-red-600/10 flex-1"
+                              >
+                                Reject Submission
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 justify-center py-2">
                               <span
-                                className={`px-2 py-1 rounded text-sm ${
+                                className={`text-sm ${
                                   submission.status === "approved"
-                                    ? "bg-green-500/20 text-green-500"
-                                    : "bg-red-500/20 text-red-500"
+                                    ? "text-green-400"
+                                    : "text-red-400"
                                 }`}
                               >
-                                {submission.status.charAt(0).toUpperCase() +
-                                  submission.status.slice(1)}
+                                You have {submission.status} this submission
                               </span>
-                            )}
-                          </div>
-                        </div>
+                            </div>
+                          )}
 
-                        {submission.transcription && (
-                          <div>
-                            <h4 className="text-sm font-medium text-zinc-400 mb-1">
-                              Transcription
-                            </h4>
-                            <p className="text-sm text-zinc-300 line-clamp-3">
-                              {submission.transcription}
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-white">
+                                {submission.creator.full_name || "Anonymous"}
+                              </p>
+                              <p className="text-sm text-zinc-400">
+                                {submission.creator.email}
+                              </p>
+                              <p className="text-sm text-zinc-400">
+                                Submitted{" "}
+                                {formatDistanceToNow(
+                                  new Date(submission.created_at)
+                                )}{" "}
+                                ago
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {submission.status !== "pending" && (
+                                <span
+                                  className={`px-2 py-1 rounded text-sm ${
+                                    submission.status === "approved"
+                                      ? "bg-green-500/20 text-green-500"
+                                      : "bg-red-500/20 text-red-500"
+                                  }`}
+                                >
+                                  {submission.status.charAt(0).toUpperCase() +
+                                    submission.status.slice(1)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {submission.transcription && (
+                            <div>
+                              <h4 className="text-sm font-medium text-zinc-400 mb-1">
+                                Transcription
+                              </h4>
+                              <p className="text-sm text-zinc-300 line-clamp-3">
+                                {submission.transcription}
+                              </p>
+                            </div>
+                          )}
+
+                          {submission.views > 0 && (
+                            <p className="text-sm text-zinc-400">
+                              Views: {submission.views.toLocaleString()}
                             </p>
-                          </div>
-                        )}
-
-                        {submission.views > 0 && (
-                          <p className="text-sm text-zinc-400">
-                            Views: {submission.views.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                          )}
+                        </div>
+                      ))}
 
                     {selectedCampaign.submissions.length === 0 && (
                       <div className="text-center py-8">

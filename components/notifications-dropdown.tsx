@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
+import { formatDistanceToNow } from "date-fns"
 
 interface Notification {
   id: string
@@ -37,33 +38,56 @@ export function NotificationsDropdown({
           className="relative"
           aria-label="Notifications"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-5 w-5 text-zinc-400" />
           {hasUnread && (
-            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+            <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#313338]" />
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        {displayNotifications.map((notification) => (
-          <DropdownMenuItem
-            key={notification.id}
-            className={`flex flex-col items-start p-4 ${
-              !notification.read ? "bg-gray-50" : ""
-            }`}
-          >
-            <div className="font-semibold">{notification.title}</div>
-            <div className="text-sm text-gray-500">{notification.message}</div>
-          </DropdownMenuItem>
-        ))}
-        {hasMore && (
-          <DropdownMenuItem asChild className="p-2 text-center">
-            <Link
-              href="/notifications"
-              className="w-full text-sm text-blue-500 hover:text-blue-600"
-            >
-              View all notifications
-            </Link>
-          </DropdownMenuItem>
+      <DropdownMenuContent
+        align="end"
+        className="w-80 bg-[#2B2D31] border-zinc-700"
+      >
+        {displayNotifications.length === 0 ? (
+          <div className="p-4 text-sm text-zinc-400 text-center">
+            No new notifications
+          </div>
+        ) : (
+          <>
+            {displayNotifications.map((notification) => (
+              <DropdownMenuItem
+                key={notification.id}
+                className={`flex flex-col items-start p-4 border-b border-zinc-700 last:border-0 ${
+                  !notification.read ? "bg-[#5865F2]/5" : ""
+                }`}
+              >
+                <div className="font-semibold text-white">
+                  {notification.title}
+                </div>
+                <div className="text-sm text-zinc-400 mt-1">
+                  {notification.message}
+                </div>
+                <div className="text-xs text-zinc-500 mt-2">
+                  {formatDistanceToNow(new Date(notification.created_at), {
+                    addSuffix: true,
+                  })}
+                </div>
+              </DropdownMenuItem>
+            ))}
+            {hasMore && (
+              <DropdownMenuItem
+                asChild
+                className="p-2 text-center hover:bg-[#5865F2]/5"
+              >
+                <Link
+                  href="/notifications"
+                  className="w-full text-sm text-[#5865F2] hover:text-[#5865F2]/90"
+                >
+                  View all notifications
+                </Link>
+              </DropdownMenuItem>
+            )}
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

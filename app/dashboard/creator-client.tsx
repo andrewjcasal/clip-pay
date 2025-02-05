@@ -18,8 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { DashboardHeader } from "@/components/dashboard-header"
 
@@ -76,54 +74,34 @@ export function CreatorDashboardClient({
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
 
-  // Check for notifications on mount and when campaigns change
   useEffect(() => {
-    const checkNotifications = async () => {
-      try {
-        const notifications = await checkForNotifications()
-        if (notifications && notifications.length > 0) {
-          notifications.forEach(async (notification) => {
-            const metadata = notification.metadata as NotificationMetadata
-            toast.success(
-              `Your video for campaign "${metadata?.campaign_title}" has been approved!`,
-              {
-                description:
-                  "You can now add your public video URL to start earning.",
-                duration: 5000,
-                action: {
-                  label: "View Campaign",
-                  onClick: () => {
-                    const campaign = campaigns.find(
-                      (c) =>
-                        c.submission &&
-                        c.submission.id === metadata?.submission_id
-                    )
-                    if (campaign) {
-                      setSelectedCampaign(campaign)
-                    }
-                  },
-                },
-              }
-            )
-            // Mark notification as seen
-            await markNotificationAsSeen(notification.id)
-          })
-        }
-      } catch (error) {
-        console.error("Error checking notifications:", error)
-      }
-    }
-
-    checkNotifications()
-  }, [campaigns])
-
-  useEffect(() => {
-    // Poll for new campaigns every minute
+    // Poll for updates every minute
     const pollInterval = setInterval(async () => {
       try {
+        // Check for new campaigns
         const latestCampaigns = await getCreatorCampaigns()
 
-        // Check if there are any new campaigns
+        // Update existing campaign statuses
+        setCampaigns((prevCampaigns) => {
+          return prevCampaigns.map((prevCampaign) => {
+            const updatedCampaign = latestCampaigns.find(
+              (c) => c.id === prevCampaign.id
+            )
+            if (
+              updatedCampaign?.submission?.status !==
+              prevCampaign.submission?.status
+            ) {
+              // If the status has changed, update the selected campaign as well
+              if (selectedCampaign?.id === prevCampaign.id && updatedCampaign) {
+                setSelectedCampaign(updatedCampaign)
+              }
+              return updatedCampaign || prevCampaign
+            }
+            return prevCampaign
+          })
+        })
+
+        // Check for new campaigns
         const newOnes = latestCampaigns.filter(
           (newCampaign) =>
             !campaigns.some((existing) => existing.id === newCampaign.id)
@@ -136,13 +114,47 @@ export function CreatorDashboardClient({
             `${newOnes.length} new campaign${newOnes.length > 1 ? "s" : ""} available!`
           )
         }
+
+        // Check for notifications
+        const notifications = await checkForNotifications()
+        if (notifications && notifications.length > 0) {
+          notifications.forEach(async (notification) => {
+            const metadata = notification.metadata as NotificationMetadata
+            const campaign = latestCampaigns.find(
+              (c) => c.submission?.id === metadata?.submission_id
+            )
+            if (campaign?.submission) {
+              const status =
+                campaign.submission.status === "pending"
+                  ? "submitted"
+                  : campaign.submission.status
+              toast.success(
+                `Your video for campaign "${metadata?.campaign_title}" has been ${status}!`,
+                {
+                  description:
+                    campaign.submission.status === "approved"
+                      ? "You can now add your public video URL to start earning."
+                      : "Please check the campaign guidelines and submit a new video.",
+                  duration: 5000,
+                  action: {
+                    label: "View Campaign",
+                    onClick: () => {
+                      setSelectedCampaign(campaign)
+                    },
+                  },
+                }
+              )
+              await markNotificationAsSeen(notification.id)
+            }
+          })
+        }
       } catch (error) {
-        console.error("Error polling for campaigns:", error)
+        console.error("Error polling for updates:", error)
       }
     }, 60000) // Poll every minute
 
     return () => clearInterval(pollInterval)
-  }, [campaigns])
+  }, [campaigns, selectedCampaign])
 
   const handleShowNewCampaigns = () => {
     setCampaigns((prev) => [...newCampaigns, ...prev])
@@ -368,26 +380,6 @@ export function CreatorDashboardClient({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="videoUrl" className="text-zinc-300">
-              Video URL
-            </Label>
-            <Input
-              id="videoUrl"
-              type="url"
-              placeholder="Enter video URL (YouTube, TikTok, etc.)"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              className="border-0 bg-[#1E1F22] text-white"
-            />
-            <p className="text-sm text-zinc-500">
-              For privacy and security, we recommend using the file upload
-              option below for your initial submission. Once your video is
-              approved, you can update it with a public video URL to start
-              earning.
-            </p>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="file" className="text-zinc-300">
               Upload Video
             </Label>
@@ -526,66 +518,70 @@ export function CreatorDashboardClient({
                   {hasNewCampaigns && (
                     <button
                       onClick={handleShowNewCampaigns}
-                      className="w-full bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/20 rounded-lg p-3 text-left transition-colors group"
+                      className="w-full bg-[#5865F2]/10 hover:bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/20 rounded-lg p-3 mb-4 text-sm font-medium transition-colors"
                     >
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-[#5865F2]">
-                          <span className="font-medium">
-                            {newCampaigns.length} new campaign
-                            {newCampaigns.length > 1 ? "s" : ""} available!
-                          </span>
-                        </p>
-                        <span className="text-xs text-[#5865F2]/70 group-hover:text-[#5865F2] transition-colors">
-                          Click to view
-                        </span>
-                      </div>
+                      Show {newCampaigns.length} new campaign
+                      {newCampaigns.length > 1 ? "s" : ""}
                     </button>
                   )}
-                  {campaigns.map((campaign) => (
-                    <button
-                      key={campaign.id}
-                      onClick={() => setSelectedCampaign(campaign)}
-                      className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-all group relative overflow-hidden"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="space-y-2 flex-1">
-                            <h3 className="text-white font-medium text-lg group-hover:text-[#5865F2] transition-colors line-clamp-1">
-                              {campaign.title}
-                            </h3>
-                            <div className="flex items-center flex-wrap gap-2">
-                              <span className="text-sm text-zinc-400">
-                                by {campaign.brand?.name || "Unknown Brand"}
-                              </span>
-                              {campaign.brand?.payment_verified && (
-                                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                  Verified Payment
+                  <div className="space-y-4 pr-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                    {campaigns.map((campaign) => (
+                      <button
+                        key={campaign.id}
+                        onClick={() => setSelectedCampaign(campaign)}
+                        className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-all group relative overflow-hidden"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-2 flex-1">
+                              <h3 className="text-white font-medium text-lg group-hover:text-[#5865F2] transition-colors line-clamp-1">
+                                {campaign.title}
+                              </h3>
+                              <div className="flex items-center flex-wrap gap-2">
+                                <span className="text-sm text-zinc-400">
+                                  by {campaign.brand?.name || "Unknown Brand"}
                                 </span>
-                              )}
+                                {campaign.brand?.payment_verified && (
+                                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    Verified Payment
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {campaign.submission && (
+                              <span
+                                className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium border ${
+                                  campaign.submission.status === "approved"
+                                    ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                    : campaign.submission.status === "rejected"
+                                      ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                      : "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/20"
+                                }`}
+                              >
+                                {campaign.submission.status
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                  campaign.submission.status.slice(1)}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-4">
+                            <div className="px-3 py-1.5 bg-black/20 rounded-md">
+                              <p className="text-sm font-medium text-white">
+                                ${Number(campaign.rpm).toFixed(2)}{" "}
+                                <span className="text-zinc-400 font-normal">
+                                  RPM
+                                </span>
+                              </p>
                             </div>
                           </div>
-                          {campaign.submission && (
-                            <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-[#5865F2]/10 text-[#5865F2] font-medium border border-[#5865F2]/20">
-                              Submitted
-                            </span>
-                          )}
                         </div>
-
-                        <div className="flex items-center gap-3 mt-4">
-                          <div className="px-3 py-1.5 bg-black/20 rounded-md">
-                            <p className="text-sm font-medium text-white">
-                              ${Number(campaign.rpm).toFixed(2)}{" "}
-                              <span className="text-zinc-400 font-normal">
-                                RPM
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/0 group-hover:bg-emerald-400/50 transition-all"></div>
-                    </button>
-                  ))}
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/0 group-hover:bg-emerald-400/50 transition-all"></div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             ) : (
@@ -599,103 +595,107 @@ export function CreatorDashboardClient({
               </div>
             )}
           </div>
-          <div className="flex-1 self-start bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6">
-            {selectedCampaign ? (
-              <div className="space-y-6">
-                {/* Campaign details */}
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <h2 className="text-2xl font-bold text-white">
-                        {selectedCampaign.title}
-                      </h2>
-                      <div className="flex items-center gap-2">
-                        <p className="text-zinc-400">
-                          by {selectedCampaign.brand?.name || "Unknown Brand"}
-                        </p>
-                        {selectedCampaign.brand?.payment_verified && (
-                          <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Verified Payment
-                          </span>
-                        )}
+          <div className="flex-1 sticky top-24">
+            <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6">
+              {selectedCampaign ? (
+                <div className="space-y-6">
+                  {/* Campaign details */}
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-white">
+                          {selectedCampaign.title}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <p className="text-zinc-400">
+                            by {selectedCampaign.brand?.name || "Unknown Brand"}
+                          </p>
+                          {selectedCampaign.brand?.payment_verified && (
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              Verified Payment
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
+                              <Share className="w-5 h-5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-72 bg-[#2B2D31] border-zinc-800"
+                          >
+                            <DropdownMenuItem
+                              className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
+                              onClick={() =>
+                                handleCopy(
+                                  `${window.location.origin}/campaigns/${selectedCampaign.id}`,
+                                  selectedCampaign.id
+                                )
+                              }
+                            >
+                              <span className="text-sm">
+                                Copy public campaign link
+                              </span>
+                              {copiedCampaign === selectedCampaign.id && (
+                                <span className="text-xs text-zinc-400">
+                                  Copied!
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
 
-                    <div className="shrink-0">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
-                            <Share className="w-5 h-5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-72 bg-[#2B2D31] border-zinc-800"
-                        >
-                          <DropdownMenuItem
-                            className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
-                            onClick={() =>
-                              handleCopy(
-                                `${window.location.origin}/campaigns/${selectedCampaign.id}`,
-                                selectedCampaign.id
-                              )
-                            }
-                          >
-                            <span className="text-sm">
-                              Copy public campaign link
-                            </span>
-                            {copiedCampaign === selectedCampaign.id && (
-                              <span className="text-xs text-zinc-400">
-                                Copied!
-                              </span>
-                            )}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
+                        <p className="text-sm text-zinc-400 mb-1">
+                          Budget Pool
+                        </p>
+                        <p className="text-2xl font-semibold text-white">
+                          ${Number(selectedCampaign.budget_pool).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
+                        <p className="text-sm text-zinc-400 mb-1">RPM</p>
+                        <p className="text-2xl font-semibold text-white">
+                          ${Number(selectedCampaign.rpm).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium text-white">
+                        Guidelines
+                      </h3>
+                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
+                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                          {selectedCampaign.guidelines}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                      <p className="text-sm text-zinc-400 mb-1">Budget Pool</p>
-                      <p className="text-2xl font-semibold text-white">
-                        ${Number(selectedCampaign.budget_pool).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                      <p className="text-sm text-zinc-400 mb-1">RPM</p>
-                      <p className="text-2xl font-semibold text-white">
-                        ${Number(selectedCampaign.rpm).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-medium text-white">
-                      Guidelines
-                    </h3>
-                    <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                      <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                        {selectedCampaign.guidelines}
-                      </p>
-                    </div>
-                  </div>
+                  {/* Submission section */}
+                  {renderSubmissionSection()}
                 </div>
-
-                {/* Submission section */}
-                {renderSubmissionSection()}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-white">
-                  Select a campaign to view details
-                </h3>
-                <p className="text-sm text-zinc-400 mt-1">
-                  Click on any campaign from the list to view more information
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-white">
+                    Select a campaign to view details
+                  </h3>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    Click on any campaign from the list to view more information
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
