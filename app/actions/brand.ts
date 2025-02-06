@@ -20,7 +20,7 @@ export async function updateBrandProfile(organizationName: string) {
       .update({
         organization_name: organizationName,
       })
-      .eq("id", user.id)
+      .eq("user_id", user.id)
 
     if (updateError) throw updateError
 
@@ -28,6 +28,7 @@ export async function updateBrandProfile(organizationName: string) {
     return { success: true }
   } catch (error) {
     console.error("Error updating brand profile:", error)
+    console.log("in here")
     return {
       success: false,
       error:
@@ -54,7 +55,7 @@ export async function completeOnboardingWithPayment(setupIntentId: string) {
         onboarding_completed: true,
         user_type: "brand",
       })
-      .eq("id", user.id)
+      .eq("user_id", user.id)
 
     if (updateError) throw updateError
 
@@ -101,7 +102,7 @@ export async function skipPaymentSetup() {
         onboarding_completed: true,
         user_type: "brand",
       })
-      .eq("id", user.id)
+      .eq("user_id", user.id)
 
     if (profileError) throw profileError
 

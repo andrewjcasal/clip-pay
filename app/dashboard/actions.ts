@@ -22,8 +22,11 @@ const deepgram = new Deepgram(DEEPGRAM_API_KEY)
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type Brand = Database["public"]["Tables"]["brands"]["Row"]
 
-interface ProfileWithBrand extends Pick<Profile, "id"> {
-  brands: Pick<Brand, "id">
+interface ProfileWithBrand {
+  user_id: string
+  brands: {
+    id: string
+  }[]
 }
 
 interface Campaign {
@@ -67,13 +70,12 @@ export async function approveSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()
 
   try {
-    // Get submission and campaign details first
+    // Get the submission with campaign details
     const { data: submission, error: submissionError } = await supabase
       .from("submissions")
       .select(
         `
-        id,
-        creator_id,
+        *,
         campaign:campaigns (
           title
         )
@@ -82,13 +84,9 @@ export async function approveSubmission(submissionId: string) {
       .eq("id", submissionId)
       .single()
 
-    if (submissionError) {
+    if (submissionError || !submission) {
       console.error("Error fetching submission:", submissionError)
-      throw new Error(`Failed to fetch submission: ${submissionError.message}`)
-    }
-
-    if (!submission) {
-      throw new Error("Submission not found")
+      throw submissionError || new Error("Submission not found")
     }
 
     // Get payout duration from env (default to 7 days for production)
@@ -100,7 +98,7 @@ export async function approveSubmission(submissionId: string) {
     const payoutDueDate = new Date()
     payoutDueDate.setMinutes(payoutDueDate.getMinutes() + payoutDurationMinutes)
     // Update submission status
-    const { data: updateData, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("submissions")
       .update({
         status: "approved",
@@ -108,29 +106,23 @@ export async function approveSubmission(submissionId: string) {
         payout_status: "pending",
       })
       .eq("id", submissionId)
-      .select()
 
     if (updateError) {
-      console.error("Error updating submission:", updateError)
-      throw new Error(`Failed to update submission: ${updateError.message}`)
-    }
-
-    if (!updateData) {
-      console.error("No data returned from update")
-      throw new Error("Failed to update submission: No data returned")
+      console.error("Error approving submission:", updateError)
+      throw updateError
     }
 
     // Create a notification for the creator
     const { error: notificationError } = await supabase
       .from("notifications")
       .insert({
-        recipient_id: submission.creator_id,
+        recipient_id: submission.user_id,
         type: "submission_approved",
         title: "Submission Approved",
-        message: `Your submission for campaign "${submission.campaign.title}" has been approved!`,
+        message: `Your submission for campaign "${submission.campaign?.title}" has been approved!`,
         metadata: {
           submission_id: submissionId,
-          campaign_title: submission.campaign.title,
+          campaign_title: submission.campaign?.title,
         },
       })
 
@@ -140,6 +132,7 @@ export async function approveSubmission(submissionId: string) {
     }
 
     revalidatePath("/dashboard")
+    return submission
   } catch (error) {
     console.error("Error in approveSubmission:", error)
     throw error
@@ -148,56 +141,55 @@ export async function approveSubmission(submissionId: string) {
 
 export async function rejectSubmission(submissionId: string) {
   const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // Get submission and campaign details first
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  // Get the submission with campaign details
   const { data: submission, error: submissionError } = await supabase
     .from("submissions")
     .select(
       `
-      id,
-      creator_id,
+      *,
       campaign:campaigns (
-        id,
-        title,
-        brand_id
+        title
       )
     `
     )
     .eq("id", submissionId)
     .single()
 
-  if (submissionError) {
+  if (submissionError || !submission) {
     console.error("Error fetching submission:", submissionError)
-    throw new Error(`Failed to fetch submission: ${submissionError.message}`)
-  }
-
-  if (!submission) {
-    throw new Error("Submission not found")
+    throw submissionError || new Error("Submission not found")
   }
 
   // Update the submission status
-  const { data, error } = await supabase
+  const { error: updateError } = await supabase
     .from("submissions")
     .update({ status: "rejected" })
     .eq("id", submissionId)
-    .select()
 
-  if (error) {
-    console.error("Error rejecting submission:", error)
-    throw error
+  if (updateError) {
+    console.error("Error rejecting submission:", updateError)
+    throw updateError
   }
 
   // Create a notification for the creator
   const { error: notificationError } = await supabase
     .from("notifications")
     .insert({
-      recipient_id: submission.creator_id,
+      recipient_id: submission.user_id,
       type: "submission_rejected",
       title: "Submission Rejected",
-      message: `Your submission for campaign "${submission.campaign.title}" was not approved.`,
+      message: `Your submission for campaign "${submission.campaign?.title}" was not approved.`,
       metadata: {
         submission_id: submissionId,
-        campaign_title: submission.campaign.title,
+        campaign_title: submission.campaign?.title,
       },
     })
 
@@ -207,7 +199,7 @@ export async function rejectSubmission(submissionId: string) {
   }
 
   revalidatePath("/dashboard")
-  return data
+  return submission
 }
 
 export async function createCampaign({
@@ -242,31 +234,31 @@ export async function createCampaign({
     throw new Error("Not authenticated")
   }
 
-  // First get the user's profile to get their brand
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select<string, ProfileWithBrand>("id, brands!inner (id)")
-    .eq("id", user.id)
+  // Get brand ID and profile separately
+  const { data: brand } = await supabase
+    .from("brands")
+    .select("id, user_id")
+    .eq("user_id", user.id)
     .single()
 
-  if (profileError) {
-    console.error("Profile fetch error:", profileError)
-    throw new Error("Failed to fetch user profile")
-  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single()
 
-  if (!profile?.brands?.id) {
+  if (!profile || !brand) {
     console.error("No brand found for user:", user.id)
     throw new Error("No brand found for user")
   }
 
-  const userBrandId = profile.brands.id
-
-  if (userBrandId !== brandId) {
+  // Use brand's user_id instead of brand's id
+  if (brand.user_id !== user.id) {
     console.error(
-      "Brand mismatch. User brand:",
-      userBrandId,
-      "Request brand:",
-      brandId
+      "Brand mismatch. User id:",
+      user.id,
+      "Brand user_id:",
+      brand.user_id
     )
     throw new Error("Unauthorized: Brand does not belong to user")
   }
@@ -301,7 +293,7 @@ export async function createCampaign({
       guidelines,
       video_outline,
       referral_bonus_rate: numericReferralRate,
-      brand_id: brandId,
+      user_id: user.id,
       status: "active",
     })
     .select()
@@ -395,14 +387,14 @@ export async function submitVideo({
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("user_type")
-      .eq("id", user.id)
+      .eq("user_id", user.id)
       .single()
 
     if (userProfile?.user_type !== "creator") {
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ user_type: "creator" })
-        .eq("id", user.id)
+        .eq("user_id", user.id)
 
       if (updateError) {
         throw new Error("Failed to update profile type")
@@ -455,7 +447,7 @@ export async function submitVideo({
       .from("submissions")
       .insert({
         campaign_id: campaignId,
-        creator_id: user.id,
+        user_id: user.id,
         video_url: finalVideoUrl,
         file_path: filePath,
         transcription,
@@ -545,11 +537,12 @@ export async function pollNewSubmissions(campaignIds: string[]) {
       status,
       created_at,
       views,
-      creator_id,
+      user_id,
       campaign_id,
-      creator:creator_profiles(
-        organization_name,
-        email
+      creator:creators(
+        profiles (
+          organization_name
+        )
       )
     `
     )
@@ -599,7 +592,7 @@ export const updateSubmissionVideoUrl = async (
       updated_at: new Date().toISOString(),
     })
     .eq("id", submissionId)
-    .eq("creator_id", user.id)
+    .eq("user_id", user.id)
     .select()
     .single()
 

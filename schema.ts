@@ -92,7 +92,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
-          brand_id: string
+          user_id: string
           budget_pool: number
           created_at: string
           guidelines: string | null
@@ -104,7 +104,7 @@ export type Database = {
           video_outline: string | null
         }
         Insert: {
-          brand_id: string
+          user_id: string
           budget_pool: number
           created_at?: string
           guidelines?: string | null
@@ -116,7 +116,7 @@ export type Database = {
           video_outline?: string | null
         }
         Update: {
-          brand_id?: string
+          user_id?: string
           budget_pool?: number
           created_at?: string
           guidelines?: string | null
@@ -129,8 +129,8 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "campaigns_brand_id_fkey"
-            columns: ["brand_id"]
+            foreignKeyName: "campaigns_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]

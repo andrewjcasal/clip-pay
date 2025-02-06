@@ -100,7 +100,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
-          brand_id: string
+          user_id: string
           budget_pool: number
           created_at: string
           guidelines: string | null
@@ -113,7 +113,7 @@ export type Database = {
           referral_bonus_rate: number
         }
         Insert: {
-          brand_id: string
+          user_id: string
           budget_pool: number
           created_at?: string
           guidelines?: string | null
@@ -126,7 +126,7 @@ export type Database = {
           referral_bonus_rate: number
         }
         Update: {
-          brand_id?: string
+          user_id?: string
           budget_pool?: number
           created_at?: string
           guidelines?: string | null
@@ -140,8 +140,8 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "campaigns_brand_id_fkey"
-            columns: ["brand_id"]
+            foreignKeyName: "campaigns_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]
@@ -154,6 +154,7 @@ export type Database = {
           id: string
           payment_verified: boolean | null
           stripe_account_id: string | null
+          stripe_account_status: string | null
           updated_at: string
           user_id: string
         }
@@ -162,6 +163,7 @@ export type Database = {
           id?: string
           payment_verified?: boolean | null
           stripe_account_id?: string | null
+          stripe_account_status?: string | null
           updated_at?: string
           user_id: string
         }
@@ -170,6 +172,7 @@ export type Database = {
           id?: string
           payment_verified?: boolean | null
           stripe_account_id?: string | null
+          stripe_account_status?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -231,7 +234,7 @@ export type Database = {
           created_at: string
           updated_at: string | null
           campaign_id: string
-          creator_id: string
+          user_id: string
           video_url: string | null
           file_path: string | null
           transcription: string | null
@@ -247,7 +250,7 @@ export type Database = {
           created_at?: string
           updated_at?: string | null
           campaign_id: string
-          creator_id: string
+          user_id: string
           video_url?: string | null
           file_path?: string | null
           transcription?: string | null
@@ -263,7 +266,7 @@ export type Database = {
           created_at?: string
           updated_at?: string | null
           campaign_id?: string
-          creator_id?: string
+          user_id?: string
           video_url?: string | null
           file_path?: string | null
           transcription?: string | null

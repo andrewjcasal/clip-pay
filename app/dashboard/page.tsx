@@ -56,8 +56,8 @@ export default async function DashboardPage() {
   // Get user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, user_type, organization_name, onboarding_completed")
-    .eq("id", user.id)
+    .select("user_type, onboarding_completed")
+    .eq("user_id", user.id)
     .single()
 
   // If onboarding not completed, redirect to appropriate onboarding flow

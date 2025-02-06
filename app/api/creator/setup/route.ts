@@ -20,13 +20,23 @@ export async function POST(request: Request) {
     }
 
     // Update the profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!profile) {
+      return new NextResponse("Failed to retrieve profile", { status: 500 })
+    }
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
         organization_name: organizationName,
         onboarding_completed: true,
       })
-      .eq("id", user.id)
+      .eq("user_id", user.id)
 
     if (updateError) {
       console.error("Error updating profile:", updateError)

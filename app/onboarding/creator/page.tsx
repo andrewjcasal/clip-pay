@@ -15,7 +15,7 @@ export default async function CreatorOnboarding() {
   const { data: profile } = await supabase
     .from("profiles")
     .select("organization_name, onboarding_completed")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
     .single()
 
   // If user already has completed onboarding, redirect to dashboard

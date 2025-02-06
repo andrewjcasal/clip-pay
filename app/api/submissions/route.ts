@@ -38,8 +38,7 @@ export async function POST(req: Request) {
       .from("submissions")
       .insert({
         campaign_id,
-        creator_id: user.id,
-        video_url,
+        user_id: user.id,
         file_path,
         status: "pending",
       })

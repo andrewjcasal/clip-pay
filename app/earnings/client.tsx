@@ -27,28 +27,37 @@ export function EarningsClient({
 }: EarningsClientProps) {
   return (
     <div className="space-y-6">
-      {!hasStripeAccount && (
-        <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-white">
-                Connect Your Bank Account
-              </h2>
-              <p className="text-sm text-zinc-400 mt-1">
-                Link your bank account to start receiving payments
-              </p>
+      <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">
+              Bank Account Status
+            </h2>
+            <p className="text-sm text-zinc-400 mt-1">
+              {hasStripeAccount
+                ? "Your bank account is connected and ready to receive payments"
+                : "Link your bank account to start receiving payments"}
+            </p>
+          </div>
+          {hasStripeAccount ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Connected
+              </span>
             </div>
+          ) : (
             <Button
               onClick={() => (window.location.href = "/api/stripe/connect")}
               className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
             >
               Connect Now
             </Button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-2">
             <DollarSign className="w-5 h-5 text-[#5865F2]" />

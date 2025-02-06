@@ -76,7 +76,7 @@ export function OnboardingForm() {
           organization_name: organizationName,
           onboarding_completed: true,
         })
-        .eq("id", user.id)
+        .eq("user_id", user.id)
 
       if (updateError) throw updateError
 

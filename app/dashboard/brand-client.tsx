@@ -282,6 +282,23 @@ export function DashboardClient({
         })
       )
 
+      // Update selected campaign state
+      setSelectedCampaign((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          submissions: prev.submissions.map((submission) =>
+            submission.id === submissionId
+              ? {
+                  ...submission,
+                  status: "approved",
+                  payout_status: "pending",
+                }
+              : submission
+          ),
+        }
+      })
+
       toast.success("Submission approved successfully")
     } catch (error) {
       console.error("Error approving submission:", error)
@@ -304,8 +321,22 @@ export function DashboardClient({
           ),
         }))
       )
+
+      // Update selected campaign state
+      setSelectedCampaign((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          submissions: prev.submissions.map((submission) =>
+            submission.id === submissionId
+              ? { ...submission, status: "rejected" }
+              : submission
+          ),
+        }
+      })
     } catch (error) {
       console.error("Error rejecting submission:", error)
+      toast.error("Failed to reject submission")
     }
   }
 
@@ -799,7 +830,7 @@ export function DashboardClient({
                           {submission.video_url && (
                             <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/40">
                               <ReactPlayer
-                                url={submission.video_url}
+                                url={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${submission.file_path}`}
                                 width="100%"
                                 height="100%"
                                 controls

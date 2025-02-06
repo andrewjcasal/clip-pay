@@ -17,8 +17,8 @@ export default async function SettingsPage() {
   // Get user profile to check type
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_type")
-    .eq("id", user.id)
+    .select("*")
+    .eq("user_id", user.id)
     .single()
 
   if (!profile) {
@@ -30,11 +30,12 @@ export default async function SettingsPage() {
   if (profile.user_type === "creator") {
     const { data: creator } = await supabase
       .from("creators")
-      .select("stripe_account_id")
+      .select("stripe_account_id, stripe_account_status")
       .eq("user_id", user.id)
       .single()
 
-    hasStripeAccount = !!creator?.stripe_account_id
+    // Only consider the account connected if it's active
+    hasStripeAccount = creator?.stripe_account_status === "active"
   }
 
   return (

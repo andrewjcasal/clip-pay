@@ -47,11 +47,18 @@ export function DashboardHeader({
           <div>
             <Link
               href="/dashboard"
-              className="hover:opacity-80 transition-opacity"
+              className="hover:opacity-80 transition-opacity flex items-center gap-3"
             >
-              <h1 className="text-2xl font-bold text-white">
-                {userType === "creator" ? "Creator" : "Brand"} Platform
-              </h1>
+              <h1 className="text-2xl font-bold text-white">Clip Pay</h1>
+              <span
+                className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                  userType === "creator"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                }`}
+              >
+                {userType === "creator" ? "Creator" : "Brand"}
+              </span>
             </Link>
           </div>
           <div className="flex items-center gap-6">
@@ -85,31 +92,14 @@ export function DashboardHeader({
             ) : (
               <>
                 <Link
-                  href="/campaigns"
+                  href="/payouts"
                   className="text-zinc-400 hover:text-white transition-colors"
                 >
-                  Campaigns
-                </Link>
-                <Link
-                  href="/submissions"
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  Submissions
+                  Payouts
                 </Link>
               </>
             )}
             <div className="flex items-center gap-4 ml-4 border-l border-zinc-800 pl-4">
-              {showRefreshButton && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRefresh}
-                  className="text-[#5865F2] hover:text-[#4752C4] hover:bg-[#5865F2]/10"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  {refreshButtonText}
-                </Button>
-              )}
               <Link href="/notifications">
                 <Bell className="w-5 h-5 text-zinc-400 hover:text-white transition-colors" />
               </Link>

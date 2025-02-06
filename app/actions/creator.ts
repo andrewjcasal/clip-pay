@@ -74,7 +74,7 @@ export async function updateCreatorProfile(
         onboarding_completed: true,
         user_type: "creator",
       } satisfies Database["public"]["Tables"]["profiles"]["Update"])
-      .eq("id", user.id)
+      .eq("user_id", user.id)
 
     if (updateError) throw updateError
 

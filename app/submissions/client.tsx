@@ -4,25 +4,19 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import { Database } from "@/types/supabase"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { updateSubmissionVideoUrl } from "@/app/dashboard/actions"
 import { toast } from "sonner"
-
-type Tables = Database["public"]["Tables"]
-type SubmissionRow = Tables["submissions"]["Row"]
-type CampaignRow = Tables["campaigns"]["Row"]
-type ProfileRow = Tables["profiles"]["Row"]
-
-interface SubmissionWithCampaign extends SubmissionRow {
-  campaign: Pick<CampaignRow, "id" | "title" | "rpm"> & {
-    brand: {
-      profiles: Pick<ProfileRow, "organization_name">[]
-    }
-  }
-}
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import ReactPlayer from "react-player"
+import { SubmissionWithCampaign } from "./page"
 
 interface SubmissionsClientProps {
   submissions: SubmissionWithCampaign[]
@@ -31,21 +25,23 @@ interface SubmissionsClientProps {
 type TabType = "approved" | "pending" | "fulfilled" | "archived"
 
 export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("pending")
+  const [activeTab, setActiveTab] = useState<TabType>("approved")
   const [selectedCampaign, setSelectedCampaign] = useState<{
     id: string
     title: string
     brand: string
     rpm: number
   } | null>(null)
-  const [videoUrl, setVideoUrl] = useState("")
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({})
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<
     string | null
   >(null)
+  const [videoModalOpen, setVideoModalOpen] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
 
   const tabs: { id: TabType; label: string }[] = [
-    { id: "pending", label: "Pending Submissions" },
     { id: "approved", label: "Approved Submissions" },
+    { id: "pending", label: "Pending Submissions" },
     { id: "fulfilled", label: "Fulfilled" },
     { id: "archived", label: "Archived (Rejected)" },
   ]
@@ -65,14 +61,15 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
     }
   })
 
-  const handleUpdateVideoUrl = async (submissionId: string, url: string) => {
+  const handleUpdateVideoUrl = async (submissionId: string) => {
+    const url = videoUrls[submissionId]
     if (!url) return
 
     setUpdatingSubmissionId(submissionId)
     try {
       await updateSubmissionVideoUrl(submissionId, url)
       toast.success("Video URL updated successfully!")
-      setVideoUrl("")
+      setVideoUrls((prev) => ({ ...prev, [submissionId]: "" }))
       // Refresh the page to get updated data
       window.location.reload()
     } catch (error) {
@@ -87,11 +84,11 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">My Submissions</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">My Submissions</h1>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-zinc-800">
+        <div className="border-b border-zinc-200">
           <div className="flex space-x-8">
             {tabs.map((tab) => (
               <button
@@ -100,12 +97,12 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                 className={cn(
                   "pb-4 text-sm font-medium transition-colors relative",
                   activeTab === tab.id
-                    ? "text-white border-b-2 border-[#5865F2]"
-                    : "text-zinc-400 hover:text-zinc-300"
+                    ? "text-zinc-900 border-b-2 border-[#5865F2]"
+                    : "text-zinc-500 hover:text-zinc-700"
                 )}
               >
                 {tab.label}
-                <span className="ml-2 text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+                <span className="ml-2 text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
                   {
                     submissions.filter((s) => {
                       switch (tab.id) {
@@ -131,23 +128,38 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
         {/* Submissions list */}
         <div className="space-y-4">
           {filteredSubmissions.length === 0 ? (
-            <div className="text-center py-12 bg-[#2B2D31] rounded-lg">
-              <p className="text-zinc-400">No {activeTab} submissions found</p>
+            <div className="text-center py-12 bg-white border border-zinc-200 rounded-lg">
+              <p className="text-zinc-500">No {activeTab} submissions found</p>
             </div>
           ) : (
             filteredSubmissions.map((submission) => (
               <div
                 key={submission.id}
-                className="bg-[#2B2D31] rounded-lg p-6 space-y-4"
+                className="bg-white border border-zinc-200 rounded-lg p-6 space-y-4"
               >
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <h3 className="text-lg font-medium text-white">
+                    <h3 className="text-lg font-medium text-zinc-900">
                       {submission.campaign.title}
                     </h3>
-                    <p className="text-sm text-zinc-400">
-                      for{" "}
-                      {submission.campaign.brand.profiles[0]?.organization_name}
+                    <p className="text-sm text-zinc-600">
+                      for {submission.campaign.brand.profile?.organization_name}
+                      {submission.file_path && (
+                        <>
+                          {" · "}
+                          <button
+                            onClick={() => {
+                              setSelectedVideo(
+                                `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${submission.file_path}`
+                              )
+                              setVideoModalOpen(true)
+                            }}
+                            className="text-[#5865F2] hover:underline"
+                          >
+                            Watch submission
+                          </button>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
@@ -155,9 +167,9 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                       className={cn(
                         "text-sm px-3 py-1 rounded-full border",
                         submission.status === "approved"
-                          ? "bg-green-500/10 text-green-400 border-green-500/20"
+                          ? "bg-green-50 text-green-700 border-green-200"
                           : submission.status === "rejected"
-                            ? "bg-red-500/10 text-red-400 border-red-500/20"
+                            ? "bg-red-50 text-red-700 border-red-200"
                             : "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/20"
                       )}
                     >
@@ -173,21 +185,21 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">RPM</p>
-                    <p className="text-xl font-semibold text-white">
+                  <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                    <p className="text-sm text-zinc-600 mb-1">RPM</p>
+                    <p className="text-xl font-semibold text-zinc-900">
                       ${Number(submission.campaign.rpm).toFixed(2)}
                     </p>
                   </div>
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">Views</p>
-                    <p className="text-xl font-semibold text-white">
+                  <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                    <p className="text-sm text-zinc-600 mb-1">Views</p>
+                    <p className="text-xl font-semibold text-zinc-900">
                       {submission.views}
                     </p>
                   </div>
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">Earned</p>
-                    <p className="text-xl font-semibold text-white">
+                  <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                    <p className="text-sm text-zinc-600 mb-1">Earned</p>
+                    <p className="text-xl font-semibold text-zinc-900">
                       $
                       {(
                         (submission.views * Number(submission.campaign.rpm)) /
@@ -197,58 +209,108 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
                   </div>
                 </div>
 
-                {submission.status === "approved" && (
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg space-y-3">
-                    <Label
-                      htmlFor={`video-url-${submission.id}`}
-                      className="text-sm text-zinc-300"
-                    >
-                      Add Public Video URL
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id={`video-url-${submission.id}`}
-                        type="url"
-                        placeholder="Enter public video URL (YouTube, TikTok, etc.)"
-                        value={
-                          submission.id === updatingSubmissionId ? videoUrl : ""
-                        }
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        className="flex-1 border-0 bg-[#1E1F22] text-white"
-                      />
-                      <Button
-                        onClick={() =>
-                          handleUpdateVideoUrl(submission.id, videoUrl)
-                        }
-                        disabled={
-                          !videoUrl || updatingSubmissionId === submission.id
-                        }
-                        className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
-                      >
-                        {updatingSubmissionId === submission.id
-                          ? "Updating..."
-                          : "Update URL"}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      Add your public video URL to start earning from views
-                    </p>
+                {submission.status === "approved" && !submission.video_url && (
+                  <div className="bg-zinc-50 border border-zinc-200 rounded-lg">
+                    <Accordion type="single" collapsible>
+                      <AccordionItem value="video-url" className="border-none">
+                        <AccordionTrigger className="flex items-center justify-between px-4 py-3 hover:no-underline">
+                          <span className="text-sm text-zinc-700">
+                            Add Public Video URL
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="space-y-3">
+                            <div className="flex gap-2">
+                              <Input
+                                id={`video-url-${submission.id}`}
+                                type="url"
+                                placeholder="Enter public video URL (YouTube, TikTok, etc.)"
+                                value={videoUrls[submission.id] || ""}
+                                onChange={(e) =>
+                                  setVideoUrls((prev) => ({
+                                    ...prev,
+                                    [submission.id]: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 border border-zinc-200 bg-white text-zinc-900"
+                              />
+                              <Button
+                                onClick={() =>
+                                  handleUpdateVideoUrl(submission.id)
+                                }
+                                disabled={
+                                  !videoUrls[submission.id] ||
+                                  updatingSubmissionId === submission.id
+                                }
+                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
+                              >
+                                {updatingSubmissionId === submission.id
+                                  ? "Updating..."
+                                  : "Update URL"}
+                              </Button>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </div>
                 )}
 
                 {submission.video_url && (
-                  <div className="flex items-center justify-between bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-zinc-400">Draft URL:</span>
-                      <a
-                        href={submission.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-[#5865F2] hover:underline"
-                      >
-                        {submission.video_url}
-                      </a>
-                    </div>
+                  <div className="bg-zinc-50 border border-zinc-200 rounded-lg">
+                    <Accordion type="single" collapsible>
+                      <AccordionItem value="video-url" className="border-none">
+                        <AccordionTrigger className="flex items-center justify-between px-4 py-3 hover:no-underline">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-zinc-700">
+                              Public Video URL:
+                            </span>
+                            <a
+                              href={submission.video_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-[#5865F2] hover:underline max-w-[300px] truncate"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {submission.video_url}
+                            </a>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="space-y-3">
+                            <div className="flex gap-2">
+                              <Input
+                                id={`video-url-${submission.id}`}
+                                type="url"
+                                placeholder="Enter new public video URL"
+                                value={videoUrls[submission.id] || ""}
+                                onChange={(e) =>
+                                  setVideoUrls((prev) => ({
+                                    ...prev,
+                                    [submission.id]: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 border border-zinc-200 bg-white text-zinc-900"
+                              />
+                              <Button
+                                onClick={() =>
+                                  handleUpdateVideoUrl(submission.id)
+                                }
+                                disabled={
+                                  !videoUrls[submission.id] ||
+                                  updatingSubmissionId === submission.id
+                                }
+                                className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
+                              >
+                                {updatingSubmissionId === submission.id
+                                  ? "Updating..."
+                                  : "Update URL"}
+                              </Button>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </div>
                 )}
               </div>
@@ -303,6 +365,24 @@ export function SubmissionsClient({ submissions }: SubmissionsClientProps) {
           onClick={() => setSelectedCampaign(null)}
         />
       )}
+
+      {/* Add Video Modal */}
+      <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+        <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-[#2B2D31] border-zinc-800">
+          <DialogTitle className="sr-only">Video Submission</DialogTitle>
+          <div className="aspect-video w-full bg-black">
+            {selectedVideo && (
+              <ReactPlayer
+                url={selectedVideo}
+                width="100%"
+                height="100%"
+                controls
+                playing
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

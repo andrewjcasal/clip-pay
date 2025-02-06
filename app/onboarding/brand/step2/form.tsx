@@ -103,7 +103,6 @@ function PaymentForm() {
       <div className="flex gap-3">
         <Button
           type="button"
-          variant="outline"
           onClick={handleSkip}
           disabled={isLoading}
           className="flex-1"

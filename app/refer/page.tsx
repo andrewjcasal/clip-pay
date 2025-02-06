@@ -21,7 +21,7 @@ export default async function ReferPage() {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("user_type")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
     .single()
 
   if (profileError || !profile) {
@@ -37,7 +37,7 @@ export default async function ReferPage() {
   let { data: referralData } = await supabase
     .from("referrals")
     .select("code")
-    .eq("profile_id", user.id)
+    .eq("user_id", user.id)
     .single()
 
   // If no referral code exists, create one

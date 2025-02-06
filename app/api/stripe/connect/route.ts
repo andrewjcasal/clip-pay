@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("user_type, organization_name")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
     .single()
 
   if (!profile || profile.user_type !== "creator") {
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     ),
     type: "account_onboarding",
     refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/settings?error=connect_refresh`,
-    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/settings?success=connect_complete`,
+    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/stripe/connect/callback`,
   })
 
   // Redirect to Stripe Connect onboarding
@@ -78,7 +78,10 @@ async function createStripeConnectAccount(
     // Update creator record with Stripe account ID
     await supabase
       .from("creators")
-      .update({ stripe_account_id: accountId })
+      .update({
+        stripe_account_id: accountId,
+        stripe_account_status: "pending",
+      })
       .eq("user_id", userId)
   }
 

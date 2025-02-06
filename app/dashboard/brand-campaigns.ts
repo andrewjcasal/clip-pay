@@ -22,8 +22,8 @@ export const getBrandCampaigns = async (): Promise<
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name:organization_name")
-    .eq("id", user.id)
+    .select("*")
+    .eq("user_id", user.id)
     .single()
 
   if (!profile || !brand) {
@@ -39,7 +39,7 @@ export const getBrandCampaigns = async (): Promise<
       submissions (
         id,
         campaign_id,
-        creator_id,
+        user_id,
         video_url,
         file_path,
         transcription,
@@ -49,7 +49,7 @@ export const getBrandCampaigns = async (): Promise<
       )
     `
     )
-    .eq("brand_id", brand.id)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -64,7 +64,7 @@ export const getBrandCampaigns = async (): Promise<
   // Get all creator IDs from submissions
   const creatorIds = campaigns
     .flatMap((c) => c.submissions || [])
-    .map((s) => s.creator_id)
+    .map((s) => s.user_id)
     .filter((id): id is string => !!id)
 
   // Get creator profiles
@@ -82,12 +82,12 @@ export const getBrandCampaigns = async (): Promise<
     video_outline: campaign.video_outline,
     status: campaign.status || "",
     brand: {
-      name: profile.name || "",
+      name: profile.organization_name || "",
       payment_verified: false,
     },
     submission: null,
     submissions: (campaign.submissions || []).map((submission) => {
-      const creator = creators?.find((c) => c.id === submission.creator_id)
+      const creator = creators?.find((c) => c.id === submission.user_id)
       return {
         id: submission.id,
         video_url: submission.video_url || "",
@@ -95,7 +95,7 @@ export const getBrandCampaigns = async (): Promise<
         transcription: submission.transcription || "",
         status: submission.status,
         campaign_id: campaign.id,
-        creator_id: submission.creator_id,
+        creator_id: submission.user_id,
         created_at: submission.created_at,
         views: submission.views || 0,
         creator: {

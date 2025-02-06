@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("user_type, organization_name, onboarding_completed")
-      .eq("id", data.session.user.id)
+      .eq("user_id", data.session.user.id)
       .single()
 
     if (profileError) {

@@ -18,23 +18,25 @@ export default async function BrandOnboardingStep2() {
     redirect("/signin")
   }
 
-  // Get brand record with organization name from profile
-  const { data: brand } = await supabase
+  console.log("user", user)
+
+  // Debug query
+  const { data: brandDebug, error: debugError } = await supabase
     .from("brands")
-    .select(
-      `
-      *,
-      profiles!inner (
-        organization_name
-      )
-    `
-    )
+    .select()
+    .eq("user_id", user.id)
+
+  console.log("Debug brand query:", { data: brandDebug, error: debugError })
+
+  // Get brand record with organization name from profile
+  const { data: brand, error } = await supabase
+    .from("brands")
+    .select("*, profiles (organization_name)")
     .eq("user_id", user.id)
     .single()
 
-  // If user doesn't have an organization name, redirect to step 1
   if (!brand?.profiles?.organization_name) {
-    redirect("/onboarding/brand/step1")
+    redirect("/onboarding/brand/profile")
   }
 
   // If user already has a Stripe customer ID and has completed onboarding, redirect to dashboard
@@ -56,7 +58,6 @@ export default async function BrandOnboardingStep2() {
         email: user.email,
         metadata: {
           user_id: user.id,
-          brand_id: brand.id,
         },
       })
 

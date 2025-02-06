@@ -22,7 +22,7 @@ export const getCreatorCampaigns = async () => {
       *,
         brand:brands (
           payment_verified,
-        name:profiles!inner (
+          name:profiles (
             organization_name
           )
       ),
@@ -35,7 +35,7 @@ export const getCreatorCampaigns = async () => {
       `
     )
     .eq("status", "active")
-    .eq("submissions.creator_id", user.id)
+    .eq("submissions.user_id", user.id)
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -53,7 +53,7 @@ export const getCreatorCampaigns = async () => {
       guidelines: campaign.guidelines,
       video_outline: campaign.video_outline,
       status: campaign.status,
-      brand_id: campaign.brand_id,
+      user_id: campaign.user_id,
       created_at: campaign.created_at,
       brand: {
         name: campaign.brand?.name?.organization_name || "",

@@ -2,6 +2,15 @@ import { redirect } from "next/navigation"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { EarningsClient } from "./client"
+import { DashboardHeader } from "@/components/dashboard-header"
+
+type ProfileResponse = {
+  user_type: string
+  creator: {
+    stripe_account_id: string | null
+    stripe_account_status: string | null
+  }
+}
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -19,10 +28,19 @@ export default async function EarningsPage() {
   // Get user profile to check if they're a creator
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
-    .eq("id", session.user.id)
-    .single()
+    .select(
+      `
+      user_type,
+      creator:creators (
+        stripe_account_id,
+        stripe_account_status
+      )
+    `
+    )
+    .eq("user_id", session.user.id)
+    .single<ProfileResponse>()
 
+  console.log("profile", profile)
   if (!profile || profile.user_type !== "creator") {
     redirect("/dashboard")
   }
@@ -75,15 +93,25 @@ export default async function EarningsPage() {
     .limit(10)
 
   return (
-    <div className="container py-8">
-      <h1 className="text-2xl font-bold text-white mb-8">Earnings</h1>
-      <EarningsClient
-        hasStripeAccount={!!profile.stripe_account_id}
-        totalEarned={totalEarned}
-        availableForPayout={availableForPayout}
-        pendingEarnings={pendingEarnings}
-        submissions={submissions || []}
-      />
+    <div className="min-h-screen bg-[#313338]">
+      <div className="border-b border-zinc-800 bg-[#2B2D31]">
+        <DashboardHeader userType="creator" email={session.user.email || ""} />
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="max-w-[800px] mx-auto">
+          <h1 className="text-2xl font-bold text-white mb-8">Earnings</h1>
+          <EarningsClient
+            hasStripeAccount={
+              !!profile.creator?.stripe_account_id &&
+              profile.creator?.stripe_account_status === "active"
+            }
+            totalEarned={totalEarned}
+            availableForPayout={availableForPayout}
+            pendingEarnings={pendingEarnings}
+            submissions={submissions || []}
+          />
+        </div>
+      </div>
     </div>
   )
 }

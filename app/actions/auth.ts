@@ -33,7 +33,7 @@ export async function signIn(formData: FormData) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed")
-      .eq("id", user.id)
+      .eq("user_id", user.id)
       .single()
 
     // Redirect based on onboarding status
@@ -62,6 +62,8 @@ export async function signUp(formData: FormData) {
 
   try {
     const supabase = await createServerActionClient()
+    console.log("Attempting signup with:", { email, userType }) // Log signup attempt
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -74,16 +76,21 @@ export async function signUp(formData: FormData) {
     })
 
     if (error) {
-      throw new Error(error.message)
+      console.error("Signup error details:", error) // Log full error object
+      throw new Error(`Signup failed: ${error.message}`)
     }
 
     if (data.user) {
       // For admin users, set onboarding_completed to true
       if (userType === "admin") {
-        await supabase
+        const { error: updateError } = await supabase
           .from("profiles")
           .update({ onboarding_completed: true })
-          .eq("id", data.user.id)
+          .eq("user_id", data.user.id)
+
+        if (updateError) {
+          console.error("Profile update error:", updateError) // Log profile update error
+        }
       }
 
       return // Success case just returns
@@ -91,6 +98,7 @@ export async function signUp(formData: FormData) {
 
     throw new Error("Failed to create user")
   } catch (error) {
+    console.error("Full error object:", error) // Log the full error object
     throw error instanceof Error
       ? error
       : new Error("An unexpected error occurred")

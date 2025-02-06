@@ -28,12 +28,12 @@ export default async function PublicCampaignPage({
   if (error) {
     console.error("Error fetching campaign:", error)
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-2xl font-bold text-zinc-900 mb-2">
             Error Loading Campaign
           </h1>
-          <p className="text-zinc-400">
+          <p className="text-zinc-600">
             {error.message === "JWT token is invalid"
               ? "This campaign requires authentication."
               : "Unable to load campaign details."}
@@ -45,12 +45,12 @@ export default async function PublicCampaignPage({
 
   if (!campaign) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-2xl font-bold text-zinc-900 mb-2">
             Campaign Not Found
           </h1>
-          <p className="text-zinc-400">
+          <p className="text-zinc-600">
             This campaign may have ended or doesn't exist.
           </p>
         </div>
