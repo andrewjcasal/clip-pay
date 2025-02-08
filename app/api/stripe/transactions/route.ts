@@ -38,9 +38,9 @@ export async function GET(request: Request) {
     const transactions = transfers.data.map((transfer) => ({
       id: transfer.id,
       amount: transfer.amount / 100,
-      status: transfer.status,
+      status: "paid",
       created: transfer.created,
-      arrival_date: transfer.arrival_date,
+      arrival_date: null,
       description: transfer.description,
       type: "transfer",
     }))
