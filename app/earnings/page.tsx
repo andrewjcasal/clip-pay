@@ -50,15 +50,12 @@ export default async function EarningsPage() {
     .from("submissions")
     .select(
       `
-      id,
-      status,
-      payout_amount,
-      created_at,
+      *,
       campaign:campaigns (
         id,
         title,
-        brand:brands (
-          profile:profiles (
+        brand:brands!inner (
+          profile:profiles!inner (
             organization_name
           )
         )
