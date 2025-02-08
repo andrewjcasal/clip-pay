@@ -30,10 +30,7 @@ export async function POST(request: Request) {
       .from("brands")
       .select(
         `
-        id,
-        user_id,
-        stripe_customer_id,
-        payment_verified,
+        *,
         profiles!inner (
           user_type
         )
@@ -58,8 +55,8 @@ export async function POST(request: Request) {
       )
     }
 
-    if (brand.profiles?.user_type !== "brand") {
-      console.error("User is not a brand:", brand.profiles?.user_type)
+    if (brand.profiles.user_type !== "brand") {
+      console.error("User is not a brand:", brand.profiles.user_type)
       return NextResponse.json(
         { error: "Only brand accounts can process payments" },
         { status: 403 }
