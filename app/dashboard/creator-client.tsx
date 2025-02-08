@@ -1,7 +1,15 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Upload, Share } from "lucide-react"
+import {
+  Upload,
+  Share,
+  X,
+  DollarSign,
+  Users,
+  ArrowUpRight,
+  RotateCw,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,25 +20,27 @@ import {
   checkForNotifications,
   markNotificationAsSeen,
 } from "./actions"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Card } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import ReactPlayer from "react-player"
 
 interface Campaign {
   id: string
   title: string
   budget_pool: string
+  remaining_budget?: number
   rpm: string
   guidelines: string | null
   status: string | null
   brand: {
     name: string
     payment_verified?: boolean
+    profile?: {
+      organization_name: string
+    }
   }
   submission: {
     id: string
@@ -49,6 +59,90 @@ interface NotificationMetadata {
 interface CreatorDashboardClientProps {
   transformedCampaigns: Campaign[]
   email: string
+}
+
+function CampaignCard({
+  campaign,
+  onClick,
+}: {
+  campaign: Campaign
+  onClick: () => void
+}) {
+  return (
+    <div
+      className="flex items-center gap-4 p-4 hover:bg-zinc-50 rounded-lg group cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-medium text-zinc-900 truncate">
+            {campaign.title}
+          </h3>
+          {campaign.submission && (
+            <span
+              className={cn(
+                "text-xs px-2 py-0.5 rounded-full font-medium",
+                campaign.submission.status === "approved"
+                  ? "bg-green-50 text-green-700"
+                  : campaign.submission.status === "rejected"
+                    ? "bg-red-50 text-red-700"
+                    : "bg-[#5865F2]/10 text-[#5865F2]"
+              )}
+            >
+              {campaign.submission.status.charAt(0).toUpperCase() +
+                campaign.submission.status.slice(1)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-sm text-zinc-500">by</span>
+          <span className="text-sm text-zinc-600">
+            {campaign.brand?.profile?.organization_name || "Unknown Brand"}
+          </span>
+          {campaign.brand?.payment_verified && (
+            <span className="inline-flex items-center gap-1 text-[#5865F2]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#5865F2]"></span>
+              <span className="text-xs">Verified</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <div className="text-right">
+          <p className="text-sm font-medium text-zinc-900">
+            $
+            {Number(
+              campaign.remaining_budget || campaign.budget_pool
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+          {campaign.remaining_budget !== Number(campaign.budget_pool) && (
+            <p className="text-xs text-zinc-500">
+              of $
+              {Number(campaign.budget_pool).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              total
+            </p>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-medium text-zinc-900">
+            $
+            {Number(campaign.rpm).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+          <p className="text-xs text-zinc-500">RPM</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function CreatorDashboardClient({
@@ -70,6 +164,8 @@ export function CreatorDashboardClient({
   )
   const [isDragging, setIsDragging] = useState(false)
   const [copiedCampaign, setCopiedCampaign] = useState<string | null>(null)
+  const [videoModalOpen, setVideoModalOpen] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
 
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
@@ -317,19 +413,26 @@ export function CreatorDashboardClient({
 
     if (selectedCampaign?.submission) {
       return (
-        <div className="space-y-4 border-t border-zinc-700 pt-6">
+        <div className="space-y-4 border-t border-zinc-200 pt-6">
           <div className="bg-[#5865F2]/10 text-[#5865F2] p-4 rounded-lg border border-[#5865F2]/20 space-y-3">
             <h3 className="text-lg font-medium">
-              You&apos;ve already submitted for this campaign
+              {selectedCampaign.submission.status === "approved"
+                ? "Your submission has been approved! 🎉"
+                : selectedCampaign.submission.status === "fulfilled"
+                  ? "You've been paid for your submission! 🎉 ⭐️ ⭐️ ⭐️"
+                  : "You've already submitted for this campaign"}
             </h3>
             {selectedCampaign.submission.status === "approved" ? (
               <div className="space-y-3">
-                <p className="text-sm">
+                <p className="text-sm text-zinc-600">
                   Your submission has been approved! To start earning, please
                   update your submission with a public video URL.
                 </p>
                 <div className="space-y-2">
-                  <Label htmlFor="publicVideoUrl" className="text-zinc-300">
+                  <Label
+                    htmlFor="publicVideoUrl"
+                    className="text-sm font-medium text-zinc-900"
+                  >
                     Public Video URL
                   </Label>
                   <Input
@@ -338,7 +441,7 @@ export function CreatorDashboardClient({
                     placeholder="Enter public video URL (YouTube, TikTok, etc.)"
                     value={videoUrl}
                     onChange={(e) => setVideoUrl(e.target.value)}
-                    className="border-0 bg-[#1E1F22] text-white"
+                    className="h-10 bg-white border-zinc-200 text-zinc-900 focus:border-[#5865F2] focus:ring-[#5865F2]/20"
                   />
                   <Button
                     onClick={() =>
@@ -348,7 +451,7 @@ export function CreatorDashboardClient({
                     disabled={
                       !videoUrl || updatingUrl || !selectedCampaign.submission
                     }
-                    className="bg-[#5865F2] hover:bg-[#4752C4] w-full mt-2"
+                    className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white mt-3"
                   >
                     {updatingUrl ? "Updating..." : "Update Video URL"}
                   </Button>
@@ -392,22 +495,22 @@ export function CreatorDashboardClient({
                 relative border-2 border-dashed rounded-lg p-8 transition-colors
                 ${
                   isDragging
-                    ? "border-[#5865F2] bg-[#5865F2]/10"
+                    ? "border-[#5865F2] bg-[#5865F2]/5"
                     : file
                       ? "border-green-500/50 bg-green-500/5"
-                      : "border-zinc-700 hover:border-zinc-600 bg-[#1E1F22]"
+                      : "border-zinc-200 hover:border-zinc-300 bg-white"
                 }
               `}
             >
               <div className="flex flex-col items-center justify-center space-y-4 text-center">
                 <div
                   className={`rounded-full p-3 transition-colors ${
-                    file ? "bg-green-500/10" : "bg-zinc-800"
+                    file ? "bg-green-500/10" : "bg-zinc-100"
                   }`}
                 >
                   <Upload
                     className={`h-6 w-6 ${
-                      file ? "text-green-500" : "text-zinc-400"
+                      file ? "text-green-500" : "text-zinc-600"
                     }`}
                   />
                 </div>
@@ -420,7 +523,7 @@ export function CreatorDashboardClient({
                       variant="ghost"
                       size="sm"
                       onClick={() => setFile(null)}
-                      className="text-zinc-400 hover:text-zinc-300"
+                      className="text-zinc-600 hover:text-zinc-900"
                     >
                       Remove file
                     </Button>
@@ -428,7 +531,7 @@ export function CreatorDashboardClient({
                 ) : (
                   <>
                     <div>
-                      <p className="text-sm font-medium text-zinc-300">
+                      <p className="text-sm font-medium text-zinc-900">
                         Drag and drop your video here, or click to browse
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
@@ -468,237 +571,337 @@ export function CreatorDashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1b1e] via-[#2B2D31] to-[#1a1b1e]">
-      <DashboardHeader
-        userType="creator"
-        email={email}
-        showRefreshButton={hasNewCampaigns}
-        refreshButtonText="New campaigns available"
-        onRefresh={() => window.location.reload()}
-      />
+    <div className="min-h-screen bg-white">
+      <DashboardHeader userType="creator" email={email} />
 
-      {/* Metrics */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-4 gap-4">
-          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
-            <h3 className="text-sm font-medium text-zinc-400">Total Earned</h3>
-            <p className="text-2xl font-semibold text-white">$0</p>
-          </div>
-          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
-            <h3 className="text-sm font-medium text-zinc-400">
-              Active Campaigns
-            </h3>
-            <p className="text-2xl font-semibold text-white">
-              {campaigns.length}
-            </p>
-          </div>
-          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
-            <h3 className="text-sm font-medium text-zinc-400">Total Views</h3>
-            <p className="text-2xl font-semibold text-white">0</p>
-          </div>
-          <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-xl">
-            <h3 className="text-sm font-medium text-zinc-400">Avg. RPM</h3>
-            <p className="text-2xl font-semibold text-white">$0</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Campaign list and details */}
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="flex gap-4">
-          <div className="w-[30%] bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-4">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-white">
-                Available Campaigns
-              </h2>
-            </div>
-            {campaigns.length > 0 ? (
-              <>
-                <div className="space-y-2">
-                  {hasNewCampaigns && (
-                    <button
-                      onClick={handleShowNewCampaigns}
-                      className="w-full bg-[#5865F2]/10 hover:bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/20 rounded-lg p-3 mb-4 text-sm font-medium transition-colors"
-                    >
-                      Show {newCampaigns.length} new campaign
-                      {newCampaigns.length > 1 ? "s" : ""}
-                    </button>
-                  )}
-                  <div className="space-y-4 pr-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
-                    {campaigns.map((campaign) => (
-                      <button
-                        key={campaign.id}
-                        onClick={() => setSelectedCampaign(campaign)}
-                        className="w-full bg-[#2B2D31] rounded-lg p-6 text-left hover:bg-[#2B2D31]/80 transition-all group relative overflow-hidden"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="space-y-2 flex-1">
-                              <h3 className="text-white font-medium text-lg group-hover:text-[#5865F2] transition-colors line-clamp-1">
-                                {campaign.title}
-                              </h3>
-                              <div className="flex items-center flex-wrap gap-2">
-                                <span className="text-sm text-zinc-400">
-                                  by {campaign.brand?.name || "Unknown Brand"}
-                                </span>
-                                {campaign.brand?.payment_verified && (
-                                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    Verified Payment
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {campaign.submission && (
-                              <span
-                                className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium border ${
-                                  campaign.submission.status === "approved"
-                                    ? "bg-green-500/10 text-green-400 border-green-500/20"
-                                    : campaign.submission.status === "rejected"
-                                      ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                      : "bg-[#5865F2]/10 text-[#5865F2] border-[#5865F2]/20"
-                                }`}
-                              >
-                                {campaign.submission.status
-                                  .charAt(0)
-                                  .toUpperCase() +
-                                  campaign.submission.status.slice(1)}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-3 mt-4">
-                            <div className="px-3 py-1.5 bg-black/20 rounded-md">
-                              <p className="text-sm font-medium text-white">
-                                ${Number(campaign.rpm).toFixed(2)}{" "}
-                                <span className="text-zinc-400 font-normal">
-                                  RPM
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/0 group-hover:bg-emerald-400/50 transition-all"></div>
-                      </button>
-                    ))}
+      <main className="lg:ml-64 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-8 pt-20 lg:pt-8">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <Card className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="hidden lg:flex bg-zinc-100 p-2 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-zinc-600" />
                   </div>
+                  <span className="text-sm font-medium text-zinc-600">
+                    Total Earned
+                  </span>
                 </div>
-              </>
-            ) : (
-              <div className="bg-zinc-800/20 border border-zinc-800/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-zinc-400">
-                  No campaigns available at the moment.
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Check back soon for new opportunities!
+                <button className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M8 3.5C8 3.22386 8.22386 3 8.5 3C8.77614 3 9 3.22386 9 3.5C9 3.77614 8.77614 4 8.5 4C8.22386 4 8 3.77614 8 3.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 7.5C8 7.22386 8.22386 7 8.5 7C8.77614 7 9 7.22386 9 7.5C9 7.77614 8.77614 8 8.5 8C8.22386 8 8 7.77614 8 7.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 11.5C8 11.2239 8.22386 11 8.5 11C8.77614 11 9 11.2239 9 11.5C9 11.7761 8.77614 12 8.5 12C8.22386 12 8 11.7761 8 11.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-xl lg:text-2xl font-semibold text-zinc-900">
+                  $0
                 </p>
               </div>
-            )}
+            </Card>
+
+            <Card className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="hidden lg:flex bg-zinc-100 p-2 rounded-lg">
+                    <Users className="w-5 h-5 text-zinc-600" />
+                  </div>
+                  <span className="text-sm font-medium text-zinc-600">
+                    Active Campaigns
+                  </span>
+                </div>
+                <button className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M8 3.5C8 3.22386 8.22386 3 8.5 3C8.77614 3 9 3.22386 9 3.5C9 3.77614 8.77614 4 8.5 4C8.22386 4 8 3.77614 8 3.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 7.5C8 7.22386 8.22386 7 8.5 7C8.77614 7 9 7.22386 9 7.5C9 7.77614 8.77614 8 8.5 8C8.22386 8 8 7.77614 8 7.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 11.5C8 11.2239 8.22386 11 8.5 11C8.77614 11 9 11.2239 9 11.5C9 11.7761 8.77614 12 8.5 12C8.22386 12 8 11.7761 8 11.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-xl lg:text-2xl font-semibold text-zinc-900">
+                  {campaigns.length}
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="hidden lg:flex bg-zinc-100 p-2 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-zinc-600"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" />
+                      <path d="M12 7L12 13" strokeLinecap="round" />
+                      <path d="M16 13L12 13" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-zinc-600">
+                    Total Views
+                  </span>
+                </div>
+                <button className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M8 3.5C8 3.22386 8.22386 3 8.5 3C8.77614 3 9 3.22386 9 3.5C9 3.77614 8.77614 4 8.5 4C8.22386 4 8 3.77614 8 3.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 7.5C8 7.22386 8.22386 7 8.5 7C8.77614 7 9 7.22386 9 7.5C9 7.77614 8.77614 8 8.5 8C8.22386 8 8 7.77614 8 7.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 11.5C8 11.2239 8.22386 11 8.5 11C8.77614 11 9 11.2239 9 11.5C9 11.7761 8.77614 12 8.5 12C8.22386 12 8 11.7761 8 11.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-xl lg:text-2xl font-semibold text-zinc-900">
+                  0
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-4 lg:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="hidden lg:flex bg-zinc-100 p-2 rounded-lg">
+                    <RotateCw className="w-5 h-5 text-zinc-600" />
+                  </div>
+                  <span className="text-sm font-medium text-zinc-600">
+                    Avg. RPM
+                  </span>
+                </div>
+                <button className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M8 3.5C8 3.22386 8.22386 3 8.5 3C8.77614 3 9 3.22386 9 3.5C9 3.77614 8.77614 4 8.5 4C8.22386 4 8 3.77614 8 3.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 7.5C8 7.22386 8.22386 7 8.5 7C8.77614 7 9 7.22386 9 7.5C9 7.77614 8.77614 8 8.5 8C8.22386 8 8 7.77614 8 7.5Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8 11.5C8 11.2239 8.22386 11 8.5 11C8.77614 11 9 11.2239 9 11.5C9 11.7761 8.77614 12 8.5 12C8.22386 12 8 11.7761 8 11.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-xl lg:text-2xl font-semibold text-zinc-900">
+                  $0
+                </p>
+              </div>
+            </Card>
           </div>
-          <div className="flex-1 sticky top-24">
-            <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 rounded-xl p-6">
-              {selectedCampaign ? (
-                <div className="space-y-6">
-                  {/* Campaign details */}
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
+
+          {/* Available Campaigns Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-900">
+                  Available Campaigns
+                </h2>
+                <p className="text-sm text-zinc-500">
+                  Apply to campaigns and start earning
+                </p>
+              </div>
+              {hasNewCampaigns && (
+                <Button
+                  onClick={handleShowNewCampaigns}
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                >
+                  Show New Campaigns
+                </Button>
+              )}
+            </div>
+
+            <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-200">
+              {campaigns.length === 0 ? (
+                <div className="p-4 text-center">
+                  <p className="text-zinc-600">
+                    No campaigns available at the moment.
+                  </p>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    Check back soon for new opportunities!
+                  </p>
+                </div>
+              ) : (
+                campaigns.map((campaign) => (
+                  <CampaignCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    onClick={() => setSelectedCampaign(campaign)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Campaign Details Slide-in */}
+          <div
+            className={`fixed inset-y-0 right-0 w-full md:w-[500px] lg:w-[600px] bg-white transform transition-transform duration-300 ease-in-out shadow-xl z-[60] overscroll-contain ${
+              selectedCampaign ? "translate-x-0" : "translate-x-full"
+            }`}
+          >
+            {selectedCampaign && (
+              <div className="h-full flex flex-col bg-white">
+                <div className="flex items-center justify-between p-4 md:p-6 border-b border-zinc-200 bg-white">
+                  <h2 className="text-lg md:text-xl font-semibold text-zinc-900">
+                    Campaign Details
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedCampaign(null)}
+                    className="text-zinc-500 hover:text-zinc-900"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white">
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Campaign details */}
+                    <div className="space-y-4">
                       <div className="space-y-2">
-                        <h2 className="text-2xl font-bold text-white">
+                        <h2 className="text-xl md:text-2xl font-bold text-zinc-900">
                           {selectedCampaign.title}
                         </h2>
-                        <div className="flex items-center gap-2">
-                          <p className="text-zinc-400">
-                            by {selectedCampaign.brand?.name || "Unknown Brand"}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-zinc-600">
+                            by{" "}
+                            {selectedCampaign.brand?.profile
+                              ?.organization_name || "Unknown Brand"}
                           </p>
                           {selectedCampaign.brand?.payment_verified && (
-                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="inline-flex items-center gap-1.5 bg-[#5865F2]/10 text-[#5865F2] px-2.5 py-1 rounded-full text-xs font-medium border border-[#5865F2]/20">
+                              <span className="h-2 w-2 rounded-full bg-[#5865F2] animate-pulse"></span>
                               Verified Payment
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="shrink-0">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
-                              <Share className="w-5 h-5" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-72 bg-[#2B2D31] border-zinc-800"
-                          >
-                            <DropdownMenuItem
-                              className="text-white focus:bg-[#5865F2] cursor-pointer flex items-center justify-between"
-                              onClick={() =>
-                                handleCopy(
-                                  `${window.location.origin}/campaigns/${selectedCampaign.id}`,
-                                  selectedCampaign.id
-                                )
+                      <div className="grid grid-cols-2 gap-3 md:gap-4">
+                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-lg">
+                          <p className="text-sm text-zinc-600 mb-1">
+                            Budget Pool
+                          </p>
+                          <div className="space-y-1">
+                            <p className="text-lg md:text-2xl font-semibold text-zinc-900">
+                              $
+                              {Number(
+                                selectedCampaign.remaining_budget ||
+                                  selectedCampaign.budget_pool
+                              ).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              of $
+                              {Number(
+                                selectedCampaign.budget_pool
+                              ).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              total
+                            </p>
+                          </div>
+                        </div>
+                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-lg">
+                          <p className="text-sm text-zinc-600 mb-1">RPM</p>
+                          <p className="text-lg md:text-2xl font-semibold text-zinc-900">
+                            $
+                            {Number(selectedCampaign.rpm).toLocaleString(
+                              undefined,
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
                               }
-                            >
-                              <span className="text-sm">
-                                Copy public campaign link
-                              </span>
-                              {copiedCampaign === selectedCampaign.id && (
-                                <span className="text-xs text-zinc-400">
-                                  Copied!
-                                </span>
-                              )}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h3 className="text-base md:text-lg font-medium text-zinc-900">
+                          Guidelines
+                        </h3>
+                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-lg">
+                          <p className="text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed">
+                            {selectedCampaign.guidelines}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                        <p className="text-sm text-zinc-400 mb-1">
-                          Budget Pool
-                        </p>
-                        <p className="text-2xl font-semibold text-white">
-                          ${Number(selectedCampaign.budget_pool).toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                        <p className="text-sm text-zinc-400 mb-1">RPM</p>
-                        <p className="text-2xl font-semibold text-white">
-                          ${Number(selectedCampaign.rpm).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-medium text-white">
-                        Guidelines
-                      </h3>
-                      <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                          {selectedCampaign.guidelines}
-                        </p>
-                      </div>
-                    </div>
+                    {/* Submission section */}
+                    {renderSubmissionSection()}
                   </div>
-
-                  {/* Submission section */}
-                  {renderSubmissionSection()}
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <h3 className="text-lg font-medium text-white">
-                    Select a campaign to view details
-                  </h3>
-                  <p className="text-sm text-zinc-400 mt-1">
-                    Click on any campaign from the list to view more information
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+
+          {/* Overlay */}
+          {selectedCampaign && (
+            <div
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity z-[55]"
+              onClick={() => setSelectedCampaign(null)}
+            />
+          )}
+
+          {/* Add Video Modal */}
+          <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+            <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-white border-zinc-200">
+              <DialogTitle className="sr-only">Video Submission</DialogTitle>
+              <div className="aspect-video w-full bg-black">
+                {selectedVideo && (
+                  <ReactPlayer
+                    url={selectedVideo}
+                    width="100%"
+                    height="100%"
+                    controls
+                    playing
+                  />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

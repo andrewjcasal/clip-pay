@@ -5,15 +5,10 @@ import { useActionState } from "react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "../../components/ui/card"
+import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { signIn } from "../actions/auth"
+import Image from "next/image"
 
 type State = {
   message: string
@@ -34,42 +29,32 @@ const signInAction = async (prevState: State, formData: FormData) => {
 export default function SignInForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [loading] = useState(false)
 
   const [state, action] = useActionState(signInAction, null)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
-      {/* Animated Background Image */}
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            'url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          transform: "rotate(30deg) scale(1.5)",
-          transformOrigin: "center",
-          animation: "slideBackground 60s linear infinite",
-        }}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-white p-8">
+      <div className="w-full max-w-[400px] space-y-8">
+        {/* Logo */}
+        <div className="flex justify-center items-center gap-3">
+          <Image src="/logo.svg" alt="Logo" width={200} height={200} priority />
+        </div>
 
-      {/* Dark overlay - reduced opacity */}
-      <div className="absolute inset-0 bg-[#313338]/30" />
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold text-black">Welcome back!</h1>
+          <p className="text-base text-[#475467]">Please enter your details</p>
+        </div>
 
-      <Card className="w-full max-w-[480px] border-none bg-[#2B2D31]/95 text-white backdrop-blur-sm relative z-10">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">
-            Welcome back
-          </CardTitle>
-          <CardDescription className="text-zinc-400">
-            Sign in to your creator account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={action} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-zinc-300">
+        <form action={action} className="space-y-6">
+          <div className="space-y-5">
+            <div className="space-y-2.5">
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-[#1D2939]"
+              >
                 Email
               </Label>
               <Input
@@ -78,56 +63,94 @@ export default function SignInForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="border-0 bg-[#1E1F22] text-white focus:ring-2 focus:ring-[#5865F2]"
-                placeholder="Enter your email"
+                className="h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black placeholder:text-[#475467]"
+                placeholder="anna@gmail.com"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-zinc-300">
+
+            <div className="space-y-2.5">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium text-[#1D2939]"
+              >
                 Password
               </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-0 bg-[#1E1F22] text-white focus:ring-2 focus:ring-[#5865F2]"
-                placeholder="Enter your password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black pr-10 placeholder:text-[#475467]"
+                  placeholder="••••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#475467] hover:text-black"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
-            {state?.message && (
-              <p className="text-red-500 text-sm">{state.message}</p>
-            )}
+          </div>
+
+          <div className="flex items-center justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-[#1D2939] hover:text-black"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          {state?.message && (
+            <p className="text-red-500 text-sm">{state.message}</p>
+          )}
+
+          <div className="space-y-4">
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#5865F2] hover:bg-[#4752C4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 bg-black hover:bg-black/90 text-white"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Signing in..." : "Log In"}
             </Button>
-            <p className="text-sm text-zinc-400 text-center">
-              Need an account?{" "}
-              <Link href="/signup" className="text-[#5865F2] hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
 
-      <style jsx global>{`
-        @keyframes slideBackground {
-          0% {
-            background-position: 0 0;
-          }
-          100% {
-            background-position: 0 -200%;
-          }
-        }
-      `}</style>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+            >
+              <Image
+                src="/google.svg"
+                alt="Google"
+                width={20}
+                height={20}
+                className="mr-2"
+              />
+              Log in with Google
+            </Button>
+          </div>
+
+          <p className="text-sm text-[#475467] text-center">
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-black hover:underline font-medium"
+            >
+              Sign Up
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   )
 }

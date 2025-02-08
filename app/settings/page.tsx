@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { SettingsForm } from "./form"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default async function SettingsPage() {
   const supabase = await createServerSupabaseClient()
@@ -39,31 +40,34 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#313338]">
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center text-zinc-400 hover:text-white mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </Link>
+    <div className="min-h-screen bg-white">
+      <DashboardHeader
+        userType={profile.user_type as "creator" | "brand"}
+        email={user.email || ""}
+      />
 
-        <div className="space-y-6 text-center">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Account Settings</h1>
-            <p className="text-zinc-400">
-              Manage your account settings and preferences
-            </p>
+      <main className="lg:ml-64 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-8 pt-20 lg:pt-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-zinc-900">
+                  Account Settings
+                </h1>
+                <p className="text-zinc-600">
+                  Manage your account settings and preferences
+                </p>
+              </div>
+
+              <SettingsForm
+                email={user.email || ""}
+                userType={profile.user_type as "creator" | "brand"}
+                hasStripeAccount={hasStripeAccount}
+              />
+            </div>
           </div>
-
-          <SettingsForm
-            email={user.email || ""}
-            userType={profile.user_type as "creator" | "brand"}
-            hasStripeAccount={hasStripeAccount}
-          />
         </div>
-      </div>
+      </main>
     </div>
   )
 }

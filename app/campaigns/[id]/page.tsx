@@ -1,11 +1,19 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { PublicCampaignView } from "./public-view"
+import { headers } from "next/headers"
+
+// Ensure this page is dynamically rendered and revalidated
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function PublicCampaignPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
+  // Force dynamic rendering by reading headers
+  headers()
+
   const id = (await params).id
   const supabase = await createServerSupabaseClient()
 
@@ -19,6 +27,10 @@ export default async function PublicCampaignPage({
         profiles (
           organization_name
         )
+      ),
+      submissions!campaign_id (
+        payout_amount,
+        status
       )
     `
     )
@@ -58,5 +70,23 @@ export default async function PublicCampaignPage({
     )
   }
 
-  return <PublicCampaignView campaign={campaign} />
+  // Calculate remaining budget pool
+  const totalSpent =
+    campaign.submissions
+      ?.filter(
+        (submission: { status: string }) => submission.status === "fulfilled"
+      )
+      .reduce(
+        (sum: number, submission: { payout_amount: string | null }) =>
+          sum + (Number(submission.payout_amount) || 0),
+        0
+      ) || 0
+
+  const remainingBudget = Number(campaign.budget_pool) - totalSpent
+
+  return (
+    <PublicCampaignView
+      campaign={{ ...campaign, remaining_budget: remainingBudget }}
+    />
+  )
 }

@@ -6,8 +6,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { updateUserEmail, updateUserPassword } from "./actions"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Shield } from "lucide-react"
 import Link from "next/link"
+import { Card } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { PaymentMethodDisplay } from "./payment-method"
 
 interface SettingsFormProps {
   email: string
@@ -26,6 +35,8 @@ export function SettingsForm({
   const [confirmPassword, setConfirmPassword] = useState("")
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
+  const [showEmailDialog, setShowEmailDialog] = useState(false)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +52,7 @@ export function SettingsForm({
       toast.success("Email updated successfully")
       setNewEmail("")
       setConfirmEmail("")
+      setShowEmailDialog(false)
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update email"
@@ -62,6 +74,7 @@ export function SettingsForm({
       toast.success("Password updated successfully")
       setNewPassword("")
       setConfirmPassword("")
+      setShowPasswordDialog(false)
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update password"
@@ -70,18 +83,28 @@ export function SettingsForm({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="divide-y divide-zinc-200">
       {/* Email Section */}
-      <div className="max-w-[550px] mx-auto">
-        <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6 text-left">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Email Address
-          </h2>
-          <div className="space-y-4">
-            <div className="text-sm text-zinc-400 mb-4">
-              Current email: <span className="text-white">{email}</span>
-            </div>
-            <form onSubmit={handleUpdateEmail} className="space-y-4">
+      <div className="py-6 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-zinc-900">Email</h3>
+          <p className="text-sm text-zinc-600 mt-1">{email}</p>
+        </div>
+        <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+          <DialogTrigger asChild>
+            <Button
+              className="text-zinc-900 border-zinc-900"
+              variant="outline"
+              size="sm"
+            >
+              Change email
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change email address</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateEmail} className="space-y-4 pt-4">
               <div>
                 <Label htmlFor="email">New Email Address</Label>
                 <Input
@@ -89,7 +112,7 @@ export function SettingsForm({
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="bg-[#1E1F22] border-zinc-700 text-white mt-1"
+                  className="mt-1.5"
                   placeholder="Enter new email address"
                 />
               </div>
@@ -100,31 +123,57 @@ export function SettingsForm({
                   type="email"
                   value={confirmEmail}
                   onChange={(e) => setConfirmEmail(e.target.value)}
-                  className="bg-[#1E1F22] border-zinc-700 text-white mt-1"
+                  className="mt-1.5"
                   placeholder="Confirm new email address"
                 />
               </div>
               {emailError && (
-                <p className="text-sm text-red-400">{emailError}</p>
+                <p className="text-sm text-red-600">{emailError}</p>
               )}
-              <Button
-                type="submit"
-                disabled={!newEmail || !confirmEmail}
-                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-              >
-                Update Email
-              </Button>
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEmailDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!newEmail || !confirmEmail}
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                >
+                  Update Email
+                </Button>
+              </div>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Password Section */}
-      <div className="max-w-[550px] mx-auto">
-        <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6 text-left">
-          <h2 className="text-lg font-semibold text-white mb-4">Password</h2>
-          <div className="space-y-4">
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
+      <div className="py-6 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-zinc-900">Password</h3>
+          <p className="text-sm text-zinc-600 mt-1">
+            Last changed 3 months ago
+          </p>
+        </div>
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogTrigger asChild>
+            <Button
+              className="text-zinc-900 border-zinc-900"
+              variant="outline"
+              size="sm"
+            >
+              Change password
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change password</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdatePassword} className="space-y-4 pt-4">
               <div>
                 <Label htmlFor="password">New Password</Label>
                 <Input
@@ -132,7 +181,7 @@ export function SettingsForm({
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-[#1E1F22] border-zinc-700 text-white mt-1"
+                  className="mt-1.5"
                   placeholder="Enter new password"
                 />
               </div>
@@ -143,92 +192,88 @@ export function SettingsForm({
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-[#1E1F22] border-zinc-700 text-white mt-1"
+                  className="mt-1.5"
                   placeholder="Confirm new password"
                 />
               </div>
               {passwordError && (
-                <p className="text-sm text-red-400">{passwordError}</p>
+                <p className="text-sm text-red-600">{passwordError}</p>
               )}
-              <Button
-                type="submit"
-                disabled={!newPassword || !confirmPassword}
-                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-              >
-                Update Password
-              </Button>
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPasswordDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!newPassword || !confirmPassword}
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                >
+                  Update Password
+                </Button>
+              </div>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       </div>
+
+      {/* Payment Settings Section for Brands */}
+      {userType === "brand" && (
+        <div className="py-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-sm font-medium text-zinc-900">
+              Payment Method
+            </h3>
+          </div>
+          <PaymentMethodDisplay />
+        </div>
+      )}
 
       {/* Payment Settings Section for Creators */}
       {userType === "creator" && (
-        <div className="max-w-[550px] mx-auto">
-          <div className="bg-[#2B2D31] border border-zinc-800 rounded-lg p-6 text-left">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white">
-                  Payment Settings
-                </h2>
-                <p className="text-sm text-zinc-400 mt-1">
-                  Link your bank account to receive payments for your content
-                </p>
-              </div>
+        <div className="py-6 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium text-zinc-900">
+                Payment Settings
+              </h3>
               {hasStripeAccount ? (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Bank Account Connected
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-medium">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Connected
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full text-xs font-medium border border-yellow-500/20">
+                <span className="inline-flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">
                   Not Connected
                 </span>
               )}
             </div>
-
-            <div className="bg-black/20 rounded-lg p-4 space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-white">
-                  How it works:
-                </h3>
-                <ul className="text-sm text-zinc-400 space-y-2 list-disc pl-4">
-                  <li>Connect your bank account securely through Stripe</li>
-                  <li>
-                    Get paid automatically when your content reaches payout
-                    thresholds
-                  </li>
-                  <li>Track your earnings and payouts in the Earnings page</li>
-                  <li>Receive payments directly to your bank account</li>
-                </ul>
-              </div>
-
-              <Link
-                href="/earnings"
-                className="inline-flex items-center gap-2 text-[#5865F2] hover:text-[#4752C4] text-sm"
-              >
-                View your earnings <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="mt-6">
-              {hasStripeAccount ? (
-                <Button
-                  onClick={() => (window.location.href = "/earnings")}
-                  className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                >
-                  View Earnings Dashboard
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => (window.location.href = "/api/stripe/connect")}
-                  className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                >
-                  Connect Bank Account
-                </Button>
-              )}
-            </div>
+            <p className="text-sm text-zinc-600 mt-1">
+              Manage your bank account for receiving payments
+            </p>
           </div>
+          {hasStripeAccount ? (
+            <Button
+              className="text-zinc-900 border-zinc-900"
+              variant="outline"
+              size="sm"
+              onClick={() => (window.location.href = "/earnings")}
+            >
+              View earnings
+            </Button>
+          ) : (
+            <Button
+              className="text-zinc-900 border-zinc-900"
+              variant="outline"
+              size="sm"
+              onClick={() => (window.location.href = "/api/stripe/connect")}
+            >
+              Connect bank
+            </Button>
+          )}
         </div>
       )}
     </div>

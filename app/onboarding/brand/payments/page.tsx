@@ -7,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 })
 
-export default async function BrandOnboardingStep2() {
+export default async function BrandPaymentsPage() {
   const supabase = await createServerSupabaseClient()
 
   const {
@@ -17,16 +17,6 @@ export default async function BrandOnboardingStep2() {
   if (!user) {
     redirect("/signin")
   }
-
-  console.log("user", user)
-
-  // Debug query
-  const { data: brandDebug, error: debugError } = await supabase
-    .from("brands")
-    .select()
-    .eq("user_id", user.id)
-
-  console.log("Debug brand query:", { data: brandDebug, error: debugError })
 
   // Get brand record with organization name from profile
   const { data: brand, error } = await supabase

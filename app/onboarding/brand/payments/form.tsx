@@ -1,15 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card"
 import {
   PaymentElement,
   useStripe,
@@ -18,7 +11,9 @@ import {
 } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
 import { skipPaymentSetup } from "@/app/actions/brand"
+import Image from "next/image"
 
+// Load stripe outside of component to avoid recreating strip object on every render
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 )
@@ -30,6 +25,7 @@ interface Step2FormProps {
 function PaymentForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isElementReady, setIsElementReady] = useState(false)
   const router = useRouter()
   const stripe = useStripe()
   const elements = useElements()
@@ -91,28 +87,41 @@ function PaymentForm() {
         </div>
       )}
 
-      <div className="text-sm text-zinc-400 space-y-4">
+      <div className="text-sm text-[#475467] space-y-4">
         <p>
           Add a payment method to verify your brand and start working with
-          creators. Your card will only be charged when you approve a
-          creator&apos;s submission.
+          creators. Your card will only be charged when you approve a creator's
+          submission.
         </p>
       </div>
 
-      <PaymentElement />
+      <div className="bg-white rounded-lg relative min-h-[200px]">
+        {!isElementReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <div className="animate-pulse space-y-4 w-full px-4">
+              <div className="h-10 bg-gray-100 rounded w-full"></div>
+              <div className="h-10 bg-gray-100 rounded w-2/3"></div>
+              <div className="h-10 bg-gray-100 rounded w-1/2"></div>
+            </div>
+          </div>
+        )}
+        <PaymentElement onReady={() => setIsElementReady(true)} />
+      </div>
+
       <div className="flex gap-3">
         <Button
           type="button"
           onClick={handleSkip}
           disabled={isLoading}
-          className="flex-1"
+          variant="outline"
+          className="flex-1 h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
         >
           Skip for Now
         </Button>
         <Button
           type="submit"
-          className="flex-1 bg-[#5865F2] hover:bg-[#4752C4] transition-colors"
-          disabled={isLoading}
+          className="flex-1 h-11 bg-black hover:bg-black/90 text-white"
+          disabled={isLoading || !isElementReady}
         >
           {isLoading ? "Setting up..." : "Set up payments"}
         </Button>
@@ -122,64 +131,57 @@ function PaymentForm() {
 }
 
 export function Step2Form({ clientSecret }: Step2FormProps) {
+  const [isStripeLoaded, setIsStripeLoaded] = useState(false)
+
+  useEffect(() => {
+    // Check if Stripe is loaded
+    stripePromise.then(() => setIsStripeLoaded(true))
+  }, [])
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#313338] p-4 relative overflow-hidden">
-      {/* Animated Background Image */}
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            'url("https://images.unsplash.com/photo-1603481546579-65d935ba9cdd?ixlib=rb-4.0.3&auto=format&fit=crop&q=80&w=2000")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          transform: "rotate(30deg) scale(1.5)",
-          transformOrigin: "center",
-          animation: "slideBackground 60s linear infinite",
-        }}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-white p-8">
+      <div className="w-full max-w-[400px] space-y-8">
+        {/* Logo */}
+        <div className="flex justify-center items-center gap-3">
+          <Image src="/logo.svg" alt="Logo" width={200} height={200} priority />
+        </div>
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-[#313338]/30" />
-
-      <Card className="w-full max-w-md border-none bg-[#2B2D31]/95 text-white backdrop-blur-sm relative z-10">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">
-            Set up payments
-          </CardTitle>
-          <CardDescription className="text-zinc-400">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold text-black">Set up payments</h1>
+          <p className="text-base text-[#475467]">
             Add a payment method to get verified status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+
+        {isStripeLoaded ? (
           <Elements
             stripe={stripePromise}
             options={{
               clientSecret,
               appearance: {
-                theme: "night",
+                theme: "stripe",
                 variables: {
-                  colorPrimary: "#5865F2",
-                  colorBackground: "#1E1F22",
-                  colorText: "#FFFFFF",
+                  colorPrimary: "#000000",
+                  colorBackground: "#FFFFFF",
+                  colorText: "#1D2939",
+                  colorDanger: "#EF4444",
+                  fontFamily: "inherit",
+                  borderRadius: "0.5rem",
                 },
               },
+              loader: "always",
             }}
           >
             <PaymentForm />
           </Elements>
-        </CardContent>
-      </Card>
-
-      <style jsx global>{`
-        @keyframes slideBackground {
-          0% {
-            background-position: 0 0;
-          }
-          100% {
-            background-position: 0 -200%;
-          }
-        }
-      `}</style>
+        ) : (
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-gray-100 rounded w-full"></div>
+            <div className="h-10 bg-gray-100 rounded w-2/3"></div>
+            <div className="h-10 bg-gray-100 rounded w-1/2"></div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -5,7 +5,9 @@ import Link from "next/link"
 import { Campaign } from "@/types/database"
 
 interface PublicCampaignViewProps {
-  campaign: Campaign
+  campaign: Campaign & {
+    remaining_budget: number
+  }
 }
 
 export function PublicCampaignView({ campaign }: PublicCampaignViewProps) {
@@ -30,9 +32,14 @@ export function PublicCampaignView({ campaign }: PublicCampaignViewProps) {
                 <div className="flex gap-3">
                   <div className="bg-[#5865F2]/5 border border-[#5865F2]/20 p-3 rounded-lg">
                     <p className="text-sm text-[#5865F2]">Budget Pool</p>
-                    <p className="text-lg font-semibold text-zinc-900">
-                      ${campaign.budget_pool}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-zinc-900">
+                        ${campaign.remaining_budget.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        of ${Number(campaign.budget_pool).toFixed(2)} total
+                      </p>
+                    </div>
                   </div>
                   <div className="bg-[#5865F2]/5 border border-[#5865F2]/20 p-3 rounded-lg">
                     <p className="text-sm text-[#5865F2]">RPM</p>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="480" height="480" viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background shapes -->
+  <circle cx="240" cy="240" r="160" fill="#F4F4F5" />
+  <circle cx="240" cy="240" r="120" fill="#E4E4E7" />
+  
+  <!-- Decorative elements -->
+  <circle cx="240" cy="160" r="24" fill="#18181B" />
+  <circle cx="320" cy="240" r="24" fill="#18181B" />
+  <circle cx="240" cy="320" r="24" fill="#18181B" />
+  <circle cx="160" cy="240" r="24" fill="#18181B" />
+  
+  <!-- Connecting lines -->
+  <path d="M240 184L240 296" stroke="#18181B" stroke-width="4" />
+  <path d="M184 240L296 240" stroke="#18181B" stroke-width="4" />
+  
+  <!-- Animated elements -->
+  <circle cx="240" cy="240" r="40" fill="#18181B">
+    <animate
+      attributeName="r"
+      values="40;44;40"
+      dur="2s"
+      repeatCount="indefinite"
+    />
+  </circle>
+  
+  <!-- Small decorative circles -->
+  <g>
+    <circle cx="200" cy="200" r="8" fill="#18181B" opacity="0.2" />
+    <circle cx="280" cy="200" r="8" fill="#18181B" opacity="0.2" />
+    <circle cx="200" cy="280" r="8" fill="#18181B" opacity="0.2" />
+    <circle cx="280" cy="280" r="8" fill="#18181B" opacity="0.2" />
+  </g>
+  
+  <!-- Curved connecting lines -->
+  <path
+    d="M264 160C264 173.255 253.255 184 240 184"
+    stroke="#18181B"
+    stroke-width="4"
+    fill="none"
+  />
+  <path
+    d="M320 264C306.745 264 296 253.255 296 240"
+    stroke="#18181B"
+    stroke-width="4"
+    fill="none"
+  />
+  <path
+    d="M216 320C216 306.745 226.745 296 240 296"
+    stroke="#18181B"
+    stroke-width="4"
+    fill="none"
+  />
+  <path
+    d="M160 216C173.255 216 184 226.745 184 240"
+    stroke="#18181B"
+    stroke-width="4"
+    fill="none"
+  />
+</svg> 

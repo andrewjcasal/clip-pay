@@ -448,7 +448,7 @@ export async function submitVideo({
       .insert({
         campaign_id: campaignId,
         user_id: user.id,
-        video_url: finalVideoUrl,
+        video_url: videoUrl || null, // Only set if explicitly provided
         file_path: filePath,
         transcription,
         status: "pending",
@@ -495,6 +495,10 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
         video_url,
         file_path,
         campaign_id
+      ),
+      submissions:submissions (
+        payout_amount,
+        status
       )
     `
     )
@@ -504,10 +508,25 @@ export async function getCreatorCampaigns(): Promise<Campaign[]> {
   if (!campaigns) return []
 
   const transformedCampaigns = campaigns.map((campaign) => {
+    // Calculate remaining budget
+    const totalSpent =
+      campaign.submissions
+        ?.filter(
+          (submission: { status: string }) => submission.status === "fulfilled"
+        )
+        .reduce(
+          (sum: number, submission: { payout_amount: string | null }) =>
+            sum + (Number(submission.payout_amount) || 0),
+          0
+        ) || 0
+
+    const remainingBudget = Number(campaign.budget_pool) - totalSpent
+
     return {
       id: campaign.id,
       title: campaign.title,
       budget_pool: String(campaign.budget_pool),
+      remaining_budget: remainingBudget,
       rpm: String(campaign.rpm),
       guidelines: campaign.guidelines,
       video_outline: campaign.video_outline,

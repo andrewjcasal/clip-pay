@@ -1,17 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { SubmissionWithDetails } from "./page"
+import { ExternalLink, DollarSign, Video } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import { loadStripe } from "@stripe/stripe-js"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useRouter } from "next/navigation"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import ReactPlayer from "react-player"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 
 interface PayoutsClientProps {
   submissions: SubmissionWithDetails[]
 }
 
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+)
+
 export function PayoutsClient({ submissions }: PayoutsClientProps) {
+  const router = useRouter()
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [verifiedViews, setVerifiedViews] = useState<Record<string, number>>({})
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<SubmissionWithDetails | null>(submissions[0] || null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [videoModalOpen, setVideoModalOpen] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
 
   const handleProcessPayment = async (submissionId: string) => {
     setProcessingPayment(true)
@@ -21,106 +42,426 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ submissionId }),
+        body: JSON.stringify({
+          submissionId,
+          verifiedViews: verifiedViews[submissionId],
+        }),
+        credentials: "include",
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Failed to process payment")
+        if (response.status === 401) {
+          router.push("/signin")
+          return
+        }
+        throw new Error(data.error || "Failed to process payment")
       }
 
-      toast.success("Payment processed successfully")
-      // Refresh the page to update the list
-      window.location.reload()
+      const { clientSecret, transactionId } = data
+
+      // Show loading state
+      toast.loading("Processing payment...")
+
+      // Confirm the payment on the server
+      const confirmResponse = await fetch("/api/payouts/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentIntentId: clientSecret.split("_secret_")[0],
+        }),
+        credentials: "include",
+      })
+
+      const confirmData = await confirmResponse.json()
+
+      if (!confirmResponse.ok) {
+        throw new Error(confirmData.error || "Failed to confirm payment")
+      }
+
+      if (confirmData.status === "succeeded") {
+        // Payment successful
+        toast.dismiss()
+        toast.success("Payment processed successfully")
+
+        // Refresh the page to update the list
+        router.refresh()
+      } else {
+        throw new Error(`Payment failed with status: ${confirmData.status}`)
+      }
     } catch (error) {
       console.error("Error processing payment:", error)
-      toast.error("Failed to process payment")
+      toast.dismiss()
+      toast.error(
+        error instanceof Error ? error.message : "Failed to process payment"
+      )
     } finally {
       setProcessingPayment(false)
     }
   }
 
+  const calculatePaymentAmount = (views: number, rpm: number) => {
+    return (views * rpm) / 1000
+  }
+
+  const calculateServiceFee = (paymentAmount: number) => {
+    return paymentAmount * 0.2 // 20% service fee
+  }
+
+  const calculateTotalCost = (paymentAmount: number) => {
+    return paymentAmount + calculateServiceFee(paymentAmount)
+  }
+
+  const isPaymentTooLow = (paymentAmount: number) => {
+    return paymentAmount < 25 // Minimum payment threshold of $25.00
+  }
+
+  const handleViewsChange = (submissionId: string, value: string) => {
+    const numValue = parseInt(value) || 0
+    setVerifiedViews((prev) => ({
+      ...prev,
+      [submissionId]: numValue,
+    }))
+  }
+
+  if (submissions.length === 0) {
+    return (
+      <div className="h-[calc(100vh-4rem)] flex items-center justify-center p-8">
+        <div className="max-w-md w-full text-center space-y-8">
+          <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mx-auto">
+            <DollarSign className="w-10 h-10 text-zinc-400" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-zinc-900">
+              No pending payouts
+            </h2>
+            <p className="text-zinc-600">
+              When creators submit content and you approve it, you'll see
+              pending payouts here ready to be processed.
+            </p>
+          </div>
+          <Button
+            onClick={() => router.push("/dashboard")}
+            className="bg-black hover:bg-black/90 text-white"
+          >
+            View Campaigns
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Pending Payouts</h1>
-          <p className="text-zinc-400 mt-2">
-            Review and process payments for approved submissions that have
-            reached their payout due date.
+    <div className="flex h-[calc(100vh)]">
+      {/* Left Panel - Submissions List */}
+      <div className="w-[30%] border-r border-zinc-200 overflow-y-auto">
+        <div className="p-4 border-b border-zinc-200">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Pending Payouts
+          </h2>
+          <p className="text-sm text-zinc-600 mt-1">
+            {submissions.length} submissions awaiting payment
           </p>
         </div>
-
-        <div className="space-y-4">
-          {submissions.length === 0 ? (
-            <div className="text-center py-12 bg-[#2B2D31] rounded-lg">
-              <p className="text-zinc-400">No pending payouts</p>
-            </div>
-          ) : (
-            submissions.map((submission) => (
-              <div
-                key={submission.id}
-                className="bg-[#2B2D31] rounded-lg p-6 space-y-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-medium text-white">
-                      {submission.campaign.title}
-                    </h3>
-                    <p className="text-sm text-zinc-400">
-                      by {submission.creator.profile.organization_name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-zinc-500">
-                      Due{" "}
-                      {formatDistanceToNow(
-                        new Date(submission.payout_due_date!),
-                        {
-                          addSuffix: true,
-                        }
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">RPM</p>
-                    <p className="text-xl font-semibold text-white">
-                      ${Number(submission.campaign.rpm).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">Views</p>
-                    <p className="text-xl font-semibold text-white">
-                      {submission.views.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="bg-black/20 backdrop-blur-sm border border-zinc-800/50 p-4 rounded-lg">
-                    <p className="text-sm text-zinc-400 mb-1">Amount Due</p>
-                    <p className="text-xl font-semibold text-white">
-                      $
-                      {(
-                        (submission.views * Number(submission.campaign.rpm)) /
-                        1000
-                      ).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => handleProcessPayment(submission.id)}
-                    disabled={processingPayment}
-                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                  >
-                    {processingPayment ? "Processing..." : "Process Payment"}
-                  </Button>
+        <div className="divide-y divide-zinc-200">
+          {submissions.map((submission) => (
+            <button
+              key={submission.id}
+              onClick={() => setSelectedSubmission(submission)}
+              className={cn(
+                "w-full text-left p-4 hover:bg-zinc-50 transition-colors",
+                selectedSubmission?.id === submission.id && "bg-zinc-50"
+              )}
+            >
+              <div className="space-y-1">
+                <h3 className="font-medium text-zinc-900 line-clamp-1">
+                  {submission.campaign.title}
+                </h3>
+                <p className="text-sm text-zinc-600">
+                  by{" "}
+                  {submission.creator?.profile?.organization_name ||
+                    "Unknown Creator"}
+                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm text-zinc-500">
+                    Due{" "}
+                    {formatDistanceToNow(
+                      new Date(submission.payout_due_date!),
+                      { addSuffix: true }
+                    )}
+                  </span>
+                  <span className="text-sm font-medium text-zinc-900">
+                    ${Number(submission.campaign.rpm).toFixed(2)} RPM
+                  </span>
                 </div>
               </div>
-            ))
-          )}
+            </button>
+          ))}
         </div>
+      </div>
+
+      {/* Right Panel - Payment Processing */}
+      <div className="flex-1 overflow-y-auto">
+        {selectedSubmission ? (
+          <div className="p-6 max-w-4xl mx-auto">
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-zinc-900">
+                  {selectedSubmission.campaign.title}
+                </h1>
+                <p className="text-zinc-600 mt-2">
+                  Process payment for{" "}
+                  {selectedSubmission.creator?.profile?.organization_name ||
+                    "Unknown Creator"}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {/* Submission Video */}
+                {selectedSubmission.file_path && (
+                  <div
+                    className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg cursor-pointer hover:bg-zinc-100"
+                    onClick={() => {
+                      setSelectedVideo(
+                        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`
+                      )
+                      setVideoModalOpen(true)
+                    }}
+                  >
+                    <Video className="w-4 h-4 text-zinc-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 mb-0.5">
+                        Submission Video
+                      </p>
+                      <p className="text-sm text-zinc-600 hover:text-zinc-900 truncate block">
+                        Click to view video
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Modal */}
+                <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+                  <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-white border-zinc-200">
+                    <VisuallyHidden>
+                      <DialogTitle>Submission Video Preview</DialogTitle>
+                    </VisuallyHidden>
+                    <div className="aspect-video w-full bg-black">
+                      {selectedVideo && (
+                        <ReactPlayer
+                          url={selectedVideo}
+                          width="100%"
+                          height="100%"
+                          controls
+                          playing
+                        />
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Public Video URL */}
+                {selectedSubmission.video_url && (
+                  <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg">
+                    <ExternalLink className="w-4 h-4 text-zinc-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 mb-0.5">
+                        Public Video URL
+                      </p>
+                      <a
+                        href={selectedSubmission.video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-zinc-600 hover:text-zinc-900 truncate block"
+                      >
+                        {selectedSubmission.video_url}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                  <p className="text-sm text-zinc-600 mb-1">RPM</p>
+                  <p className="text-xl font-semibold text-zinc-900">
+                    ${Number(selectedSubmission.campaign.rpm).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                  <p className="text-sm text-zinc-600 mb-1">Budget Pool</p>
+                  <p className="text-xl font-semibold text-zinc-900">
+                    $
+                    {Number(selectedSubmission.campaign.budget_pool).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                <Label
+                  htmlFor={`views-${selectedSubmission.id}`}
+                  className="text-sm font-medium text-zinc-900"
+                >
+                  Verified Views
+                </Label>
+                <div className="mt-2">
+                  <Input
+                    id={`views-${selectedSubmission.id}`}
+                    type="number"
+                    min="0"
+                    value={verifiedViews[selectedSubmission.id] || ""}
+                    onChange={(e) =>
+                      handleViewsChange(selectedSubmission.id, e.target.value)
+                    }
+                    placeholder="Enter verified view count"
+                    className="max-w-xs text-zinc-900"
+                  />
+                </div>
+              </div>
+
+              {verifiedViews[selectedSubmission.id] ? (
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-900">
+                      Payment Calculation
+                    </h3>
+                    <p className="text-sm text-zinc-600 mt-1">
+                      {verifiedViews[selectedSubmission.id].toLocaleString()}{" "}
+                      views × $
+                      {Number(selectedSubmission.campaign.rpm).toFixed(2)} for
+                      every 1,000 views
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-zinc-600">Creator Payment</p>
+                      <p className="text-sm font-medium text-zinc-900">
+                        $
+                        {calculatePaymentAmount(
+                          verifiedViews[selectedSubmission.id],
+                          Number(selectedSubmission.campaign.rpm)
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm text-zinc-600">Service Fee</p>
+                        <span className="text-xs text-zinc-500">(20%)</span>
+                      </div>
+                      <p className="text-sm font-medium text-zinc-900">
+                        +$
+                        {calculateServiceFee(
+                          calculatePaymentAmount(
+                            verifiedViews[selectedSubmission.id],
+                            Number(selectedSubmission.campaign.rpm)
+                          )
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="h-px bg-zinc-200" />
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-semibold text-zinc-900">
+                        Total Cost
+                      </p>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        $
+                        {calculateTotalCost(
+                          calculatePaymentAmount(
+                            verifiedViews[selectedSubmission.id],
+                            Number(selectedSubmission.campaign.rpm)
+                          )
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-zinc-200">
+                    {isPaymentTooLow(
+                      calculatePaymentAmount(
+                        verifiedViews[selectedSubmission.id],
+                        Number(selectedSubmission.campaign.rpm)
+                      )
+                    ) ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-amber-600">
+                          Creator Payment must be at least $25.00 to be
+                          processed
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-zinc-600">
+                            Campaign Budget
+                          </p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <p className="text-sm text-zinc-900 font-medium">
+                              Remaining after payment:
+                            </p>
+                            <p className="text-sm font-semibold text-zinc-900">
+                              $
+                              {(
+                                Number(
+                                  selectedSubmission.campaign.budget_pool
+                                ) -
+                                calculatePaymentAmount(
+                                  verifiedViews[selectedSubmission.id],
+                                  Number(selectedSubmission.campaign.rpm)
+                                )
+                              ).toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-1">
+                            Only the creator payment amount is deducted from the
+                            budget pool
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex justify-end items-center gap-3">
+                {verifiedViews[selectedSubmission.id] &&
+                isPaymentTooLow(
+                  calculatePaymentAmount(
+                    verifiedViews[selectedSubmission.id],
+                    Number(selectedSubmission.campaign.rpm)
+                  )
+                ) ? (
+                  <div />
+                ) : null}
+                <Button
+                  onClick={() => handleProcessPayment(selectedSubmission.id)}
+                  disabled={
+                    processingPayment ||
+                    !verifiedViews[selectedSubmission.id] ||
+                    isPaymentTooLow(
+                      calculatePaymentAmount(
+                        verifiedViews[selectedSubmission.id],
+                        Number(selectedSubmission.campaign.rpm)
+                      )
+                    )
+                  }
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                >
+                  {processingPayment ? "Processing..." : "Process Payment"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-zinc-600">
+              Select a submission to process payment
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -51,16 +51,16 @@ export async function GET(request: Request) {
       })
     }
 
-    // Redirect back to settings page
+    // Redirect back to earnings page
     return Response.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/settings${
+      `${process.env.NEXT_PUBLIC_BASE_URL}/earnings${
         account.details_submitted ? "?success=connect" : "?error=incomplete"
       }`
     )
   } catch (error) {
     console.error("Error verifying Stripe account:", error)
     return Response.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/settings?error=verification`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/earnings?error=verification`
     )
   }
 }

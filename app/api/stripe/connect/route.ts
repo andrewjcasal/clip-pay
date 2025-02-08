@@ -71,6 +71,14 @@ async function createStripeConnectAccount(
       capabilities: {
         transfers: { requested: true },
       },
+      settings: {
+        payouts: {
+          schedule: {
+            interval: "daily",
+          },
+          statement_descriptor: "ClipPay",
+        },
+      },
     })
 
     accountId = account.id

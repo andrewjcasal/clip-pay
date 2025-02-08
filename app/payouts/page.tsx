@@ -9,8 +9,13 @@ type SubmissionRow = Tables["submissions"]["Row"]
 type CampaignRow = Tables["campaigns"]["Row"]
 type ProfileRow = Tables["profiles"]["Row"]
 
-export interface SubmissionWithDetails extends SubmissionRow {
-  campaign: Pick<CampaignRow, "title" | "rpm"> & {
+export interface SubmissionWithDetails {
+  id: string
+  status: string
+  video_url: string | null
+  file_path: string | null
+  payout_due_date: string | null
+  campaign: Pick<CampaignRow, "title" | "rpm" | "budget_pool"> & {
     brand: {
       profile: Pick<ProfileRow, "organization_name">
     }
@@ -30,27 +35,40 @@ export default async function PayoutsPage() {
     redirect("/signin")
   }
 
-  // Get user profile to check if they're a brand
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_type")
+  // Get user profile and brand details to check if they're a brand and payment verified
+  const { data: brand } = await supabase
+    .from("brands")
+    .select(
+      `
+      *,
+      profiles!inner (
+        user_type
+      )
+    `
+    )
     .eq("user_id", user.id)
     .single()
 
-  if (!profile || profile.user_type !== "brand") {
+  if (!brand || brand.profiles?.user_type !== "brand") {
     redirect("/dashboard")
   }
 
-  // Get all approved submissions past their due date
+  // Check if brand has completed payment setup
+  if (!brand.payment_verified) {
+    redirect("/onboarding/brand/payments")
+  }
+
+  // Get all approved submissions past their due date for this brand's campaigns only
   const { data: submissions, error: submissionsError } = await supabase
     .from("submissions")
     .select(
       `
       *,
-      campaign:campaigns (
+      campaign:campaigns!inner (
         title,
         rpm,
-        brand:brands (
+        budget_pool,
+        brand:brands!inner (
           profile:profiles (
             organization_name
           )
@@ -64,20 +82,22 @@ export default async function PayoutsPage() {
     `
     )
     .eq("status", "approved")
+    .eq("campaign.user_id", brand.user_id) // Filter by brand's ID
     .lte("payout_due_date", new Date().toISOString())
     .order("payout_due_date", { ascending: true })
     .returns<SubmissionWithDetails[]>()
 
-  console.log("abc", submissions)
   if (submissionsError) {
     console.error("Error fetching submissions:", submissionsError)
     return <div>Error loading submissions</div>
   }
 
   return (
-    <div className="min-h-screen bg-[#313338]">
+    <div className="min-h-screen bg-white">
       <DashboardHeader userType="brand" email={user.email || ""} />
-      <PayoutsClient submissions={submissions || []} />
+      <main className="lg:ml-64 min-h-screen">
+        <PayoutsClient submissions={submissions || []} />
+      </main>
     </div>
   )
 }
