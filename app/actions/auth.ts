@@ -32,14 +32,19 @@ export async function signIn(formData: FormData) {
     // Get user profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("onboarding_completed")
+      .select("onboarding_completed, user_type")
       .eq("user_id", user.id)
       .single()
+
+    // Check if user is admin
+    if (profile?.user_type === "admin") {
+      redirect("/admin")
+    }
 
     // Redirect based on onboarding status
     if (!profile?.onboarding_completed) {
       redirect(
-        `/onboarding/${user.user_metadata.user_type === "brand" ? "brand/profile" : "creator"}`
+        `/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
       )
     }
 
