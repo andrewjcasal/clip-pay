@@ -4,6 +4,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { ReferralClient } from "./client"
 
 export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function ReferPage() {
   const supabase = await createServerSupabaseClient()
@@ -37,8 +38,10 @@ export default async function ReferPage() {
   let { data: referralData } = await supabase
     .from("referrals")
     .select("code")
-    .eq("user_id", user.id)
+    .eq("profile_id", user.id)
     .single()
+
+  console.log("referralData", referralData)
 
   // If no referral code exists, create one
   if (!referralData) {
@@ -62,10 +65,38 @@ export default async function ReferPage() {
     referralData = newCode
   }
 
+  console.log("user.id", user.id)
+  // Get referred creators
+  const { data: referredCreators } = await supabase
+    .from("profiles")
+    .select(
+      `
+      user_id,
+      organization_name,
+      created_at,
+      creators (
+        total_earned
+      )
+    `
+    )
+    .eq("referred_by", user.id)
+    .order("created_at", { ascending: false })
+
+  console.log("referredCreators", referredCreators)
+
   return (
-    <div className="min-h-screen bg-[#313338]">
+    <div className="min-h-screen bg-white">
       <DashboardHeader userType="creator" email={user.email || ""} />
-      <ReferralClient referralCode={referralData?.code || ""} />
+      <main className="lg:ml-64 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-8 pt-20 lg:pt-8">
+          <div className="max-w-[800px] mx-auto">
+            <ReferralClient
+              referralCode={referralData?.code || ""}
+              referredCreators={referredCreators || []}
+            />
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

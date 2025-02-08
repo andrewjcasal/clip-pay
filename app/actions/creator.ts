@@ -25,21 +25,34 @@ export async function updateCreatorProfile(
     // If referral code provided, verify it
     let referrerId = null
     if (referralCode) {
+      // First get the referrer's profile ID from the referrals table
       const { data: referralData, error: referralError } = await supabase
         .from("referrals")
         .select("profile_id")
         .eq("code", referralCode)
-        .maybeSingle<ReferralData>()
+        .maybeSingle()
 
-      if (referralError) {
+      if (referralError || !referralData) {
         console.error("Error checking referral code:", referralError)
         return { success: false, error: "Invalid referral code" }
       }
 
-      if (!referralData) {
+      // Get the referrer's profile to ensure they are a creator
+      const { data: referrerProfile, error: referrerError } = await supabase
+        .from("profiles")
+        .select("user_type")
+        .eq("user_id", referralData.profile_id)
+        .single()
+
+      if (
+        referrerError ||
+        !referrerProfile ||
+        referrerProfile.user_type !== "creator"
+      ) {
         return { success: false, error: "Invalid referral code" }
       }
 
+      // Store the referrer's profile_id from the referrals table
       referrerId = referralData.profile_id
 
       // Create notification for referrer
@@ -70,27 +83,13 @@ export async function updateCreatorProfile(
       .from("profiles")
       .update({
         organization_name: organizationName,
-        referred_by: referrerId,
+        referred_by: referrerId, // This should be the profile_id from the referrals table
         onboarding_completed: true,
         user_type: "creator",
       } satisfies Database["public"]["Tables"]["profiles"]["Update"])
       .eq("user_id", user.id)
 
     if (updateError) throw updateError
-
-    // Create creator profile record
-    const { error: creatorError } = await supabase
-      .from("creators")
-      .insert({
-        user_id: user.id,
-      } satisfies Database["public"]["Tables"]["creators"]["Insert"])
-      .select()
-      .single()
-
-    if (creatorError && creatorError.code !== "23505") {
-      // Ignore unique constraint violations
-      throw creatorError
-    }
 
     // Create welcome notification for the new creator
     const { error: welcomeNotificationError } = await supabase
