@@ -86,26 +86,38 @@ export const getBrandCampaigns = async (): Promise<
       payment_verified: false,
     },
     submission: null,
-    submissions: (campaign.submissions || []).map((submission) => {
-      const creator = creators?.find((c) => c.id === submission.user_id)
-      return {
-        id: submission.id,
-        video_url: submission.video_url || "",
-        file_path: submission.file_path,
-        transcription: submission.transcription || "",
-        status: submission.status,
-        campaign_id: campaign.id,
-        creator_id: submission.user_id,
-        created_at: submission.created_at,
-        views: submission.views || 0,
-        creator: {
-          full_name: creator?.organization_name || "",
-          email: user.email || "",
-        },
+    submissions: (campaign.submissions || []).map(
+      (submission: {
+        id: string
+        user_id: string
+        video_url: string | null
+        file_path: string | null
+        transcription: string | null
+        status: string
+        created_at: string
+        views: number
+        campaign_id: string
+      }) => {
+        const creator = creators?.find((c) => c.id === submission.user_id)
+        return {
+          id: submission.id,
+          video_url: submission.video_url || "",
+          file_path: submission.file_path,
+          transcription: submission.transcription || "",
+          status: submission.status,
+          campaign_id: campaign.id,
+          creator_id: submission.user_id,
+          created_at: submission.created_at,
+          views: submission.views || 0,
+          creator: {
+            full_name: creator?.organization_name || "",
+            email: user.email || "",
+          },
+        }
       }
-    }),
+    ),
     activeSubmissionsCount: (campaign.submissions || []).filter(
-      (s) => s.status === "active"
+      (s: { status: string }) => s.status === "active"
     ).length,
   }))
 }
