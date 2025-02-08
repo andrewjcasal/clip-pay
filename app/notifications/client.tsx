@@ -5,7 +5,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Database } from "@/types/supabase"
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"]
-type Notification = Omit<NotificationRow, "read"> & { read: boolean }
+export type Notification = Omit<NotificationRow, "seen"> & { read: boolean }
 
 export function NotificationsClient({
   notifications,
