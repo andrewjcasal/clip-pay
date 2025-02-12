@@ -57,57 +57,31 @@ export async function signIn(formData: FormData) {
 }
 
 export async function signUp(formData: FormData) {
+  "use server"
+
   const email = formData.get("email") as string
   const password = formData.get("password") as string
-  const userType = formData.get("userType") as "brand" | "creator" | "admin"
+  const userType = formData.get("userType") as "creator" | "brand"
 
   if (!email || !password || !userType) {
-    throw new Error("All fields are required")
+    throw new Error("Missing required fields")
   }
 
-  try {
-    const supabase = await createServerActionClient()
-    console.log("Attempting signup with:", { email, userType }) // Log signup attempt
+  const supabase = await createServerActionClient()
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
-        data: {
-          user_type: userType,
-        },
-      },
-    })
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/${userType}/callback`,
+    },
+  })
 
-    if (error) {
-      console.error("Signup error details:", error) // Log full error object
-      throw new Error(`Signup failed: ${error.message}`)
-    }
-
-    if (data.user) {
-      // For admin users, set onboarding_completed to true
-      if (userType === "admin") {
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({ onboarding_completed: true })
-          .eq("user_id", data.user.id)
-
-        if (updateError) {
-          console.error("Profile update error:", updateError) // Log profile update error
-        }
-      }
-
-      return // Success case just returns
-    }
-
-    throw new Error("Failed to create user")
-  } catch (error) {
-    console.error("Full error object:", error) // Log the full error object
-    throw error instanceof Error
-      ? error
-      : new Error("An unexpected error occurred")
+  if (error) {
+    throw error
   }
+
+  return { success: true }
 }
 
 export async function signOut() {
@@ -120,4 +94,84 @@ export async function signOut() {
       ? error
       : new Error("An unexpected error occurred")
   }
+}
+
+export async function forgotPassword(email: string) {
+  "use server"
+
+  const supabase = await createServerActionClient()
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password`,
+    })
+
+    if (error) {
+      return { error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to send reset link",
+    }
+  }
+}
+
+export async function resetPassword(password: string) {
+  "use server"
+
+  const supabase = await createServerActionClient()
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    })
+
+    if (error) {
+      return { error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to reset password",
+    }
+  }
+}
+
+export async function signInWithGoogle(userType: "creator" | "brand") {
+  console.log("Starting Google sign in with user type:", userType)
+  const supabase = await createServerActionClient()
+
+  // Use the exact URL pattern that matches Supabase configuration
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+  const redirectUrl = new URL(`/auth/${userType}/callback`, baseUrl)
+  console.log("Redirect URL:", redirectUrl.toString())
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: redirectUrl.toString(),
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  })
+
+  console.log("Google sign in response:", { data, error })
+  if (error) {
+    console.error("Google sign in error:", error)
+    throw error
+  }
+
+  if (data?.url) {
+    console.log("Redirecting to:", data.url)
+    return data.url
+  }
+
+  throw new Error("No authentication URL returned")
 }

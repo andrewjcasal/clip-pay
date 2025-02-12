@@ -8,6 +8,7 @@ import { join } from "path"
 import { unlink } from "fs/promises"
 import { Deepgram } from "@deepgram/sdk"
 import { Database } from "@/types/supabase"
+import { updateSubmissionVideoUrl as updateVideo } from "@/app/actions/creator"
 
 const execAsync = promisify(exec)
 
@@ -590,38 +591,6 @@ export async function signOut() {
   return { success: true }
 }
 
-export const updateSubmissionVideoUrl = async (
-  submissionId: string,
-  videoUrl: string
-) => {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    throw new Error("Not authenticated")
-  }
-
-  // Update the submission with the new video URL
-  const { data, error } = await supabase
-    .from("submissions")
-    .update({
-      video_url: videoUrl,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", submissionId)
-    .eq("user_id", user.id)
-    .select()
-    .single()
-
-  if (error) {
-    throw error
-  }
-
-  return data
-}
-
 // Update the checkForNotifications function to use the notifications table
 export const checkForNotifications = async () => {
   const supabase = await createServerSupabaseClient()
@@ -667,4 +636,12 @@ export const markNotificationAsSeen = async (notificationId: string) => {
   if (error) {
     throw error
   }
+}
+
+// Create a new server action that wraps the original function
+export async function updateSubmissionVideoUrl(
+  submissionId: string,
+  videoUrl: string
+) {
+  return updateVideo(submissionId, videoUrl)
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { updateSubmissionVideoUrl } from "@/app/dashboard/actions"
+import { updateSubmissionVideoUrl } from "@/app/actions/creator"
 import { toast } from "sonner"
 import {
   Accordion,

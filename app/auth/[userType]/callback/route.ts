@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerActionClient } from "../actions"
+import { createServerActionClient } from "@/app/auth/actions"
 import { Database } from "@/types/supabase"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
@@ -13,27 +13,30 @@ function getProjectRef() {
   return matches[1]
 }
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  context: { params: { userType: string } }
+) {
   console.log("=== Auth Callback Start ===")
   const requestUrl = new URL(request.url)
   console.log("Request URL:", requestUrl.toString())
-  console.log("Search params:", Object.fromEntries(requestUrl.searchParams))
 
+  // Get and validate user type from URL params
+  const userType = context.params.userType
+  console.log("User Type from URL:", userType)
+
+  if (!userType || !["creator", "brand"].includes(userType)) {
+    console.error("Invalid user type:", userType)
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=${encodeURIComponent(
+        "Invalid user type"
+      )}`
+    )
+  }
+
+  console.log("Search params:", Object.fromEntries(requestUrl.searchParams))
   const code = requestUrl.searchParams.get("code")
   const next = requestUrl.searchParams.get("next") || "/dashboard"
-  const state = requestUrl.searchParams.get("state")
-
-  // Try to parse user_type from state
-  let userType: "creator" | "brand" | null = null
-  if (state) {
-    try {
-      const stateData = JSON.parse(state)
-      userType = stateData.user_type
-      console.log("Parsed user type from state:", userType)
-    } catch (e) {
-      console.error("Failed to parse state:", e)
-    }
-  }
 
   if (!code) {
     console.log("No code provided")
@@ -75,14 +78,14 @@ export async function GET(request: Request) {
       )
     }
 
-    // If no profile exists, create one with the user type
+    // If no profile exists, create one with the user type from URL
     if (!existingProfile) {
       console.log("No existing profile, creating new one with type:", userType)
       const { data: profile, error: insertError } = await supabase
         .from("profiles")
         .insert({
           user_id: data.session.user.id,
-          user_type: userType || "creator", // Default to creator if not specified
+          user_type: userType,
           onboarding_completed: false,
         })
         .select()
@@ -99,18 +102,18 @@ export async function GET(request: Request) {
       console.log("Profile created successfully")
     }
 
-    // Get the final profile state
+    // Get the final profile state, using the URL user type for new profiles
     const profile = existingProfile || {
-      user_type: userType || "creator",
+      user_type: userType,
       onboarding_completed: false,
     }
     console.log("Final profile state:", profile)
 
-    // Determine redirect URL
+    // Determine redirect URL based on the profile's user type
+    const onboardingPath =
+      profile.user_type === "brand" ? "brand/profile" : "creator"
     const redirectUrl = !profile.onboarding_completed
-      ? `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/${
-          profile.user_type === "brand" ? "brand/profile" : "creator"
-        }`
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/${onboardingPath}`
       : `${process.env.NEXT_PUBLIC_BASE_URL}${next}`
 
     console.log("Redirecting to:", redirectUrl)

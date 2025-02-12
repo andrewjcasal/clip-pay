@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { redirect } from "next/navigation"
-import { CreatorOnboardingForm } from "./form"
+import { TikTokAuthForm } from "./tiktok/form"
 
 export default async function CreatorOnboarding() {
   const supabase = await createServerSupabaseClient()
@@ -12,16 +12,19 @@ export default async function CreatorOnboarding() {
     redirect("/signin")
   }
 
+  // Set user type as creator if not already set
   const { data: profile } = await supabase
     .from("profiles")
-    .select("organization_name, onboarding_completed")
+    .select("user_type")
     .eq("user_id", user.id)
     .single()
 
-  // If user already has completed onboarding, redirect to dashboard
-  if (profile?.organization_name && profile?.onboarding_completed) {
-    redirect("/dashboard")
+  if (!profile?.user_type) {
+    await supabase
+      .from("profiles")
+      .update({ user_type: "creator" })
+      .eq("user_id", user.id)
   }
 
-  return <CreatorOnboardingForm />
+  return <TikTokAuthForm />
 }

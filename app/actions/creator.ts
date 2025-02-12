@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { revalidatePath } from "next/cache"
 import { Database } from "@/types/supabase"
+import { TikTokAPI } from "@/lib/tiktok"
 
 interface ReferralData {
   profile_id: string
@@ -122,5 +123,92 @@ export async function updateCreatorProfile(
       error:
         error instanceof Error ? error.message : "Failed to update profile",
     }
+  }
+}
+
+export async function updateSubmissionVideoUrl(
+  submissionId: string,
+  videoUrl: string
+) {
+  console.log("=== Starting updateSubmissionVideoUrl ===")
+  console.log("Submission ID:", submissionId)
+  console.log("Video URL:", videoUrl)
+
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.log("No authenticated user found")
+    return { success: false, error: "Not authenticated" }
+  }
+
+  try {
+    // Get the creator's TikTok access token
+    console.log("Fetching creator's TikTok access token...")
+    const { data: creator } = await supabase
+      .from("creators")
+      .select("tiktok_access_token")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!creator?.tiktok_access_token) {
+      console.log("No TikTok access token found for creator")
+      return { success: false, error: "TikTok not connected" }
+    }
+
+    console.log(
+      "Found TikTok access token:",
+      creator.tiktok_access_token.slice(0, 10) + "..."
+    )
+
+    // Get video info from TikTok
+    const tiktokApi = new TikTokAPI()
+    console.log("Fetching video info from TikTok...")
+    const videoInfo = await tiktokApi.getVideoInfo(
+      videoUrl,
+      creator.tiktok_access_token
+    )
+    console.log("Video info from TikTok:", videoInfo)
+
+    if (!videoInfo) {
+      console.log("No video info returned from TikTok")
+      return { success: false, error: "Could not fetch video information" }
+    }
+
+    console.log("Updating submission in database...")
+    console.log("Update data:", {
+      video_url: videoUrl,
+      views: videoInfo.views,
+    })
+
+    // Update the submission with video URL and views
+    const { data: updatedSubmission, error: updateError } = await supabase
+      .from("submissions")
+      .update({
+        video_url: videoUrl,
+        views: videoInfo.views,
+      })
+      .eq("id", submissionId)
+      .eq("creator_id", user.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error("Error updating submission:", updateError)
+      throw updateError
+    }
+
+    console.log("Successfully updated submission:", updatedSubmission)
+
+    revalidatePath("/submissions")
+    revalidatePath("/dashboard")
+
+    console.log("=== Completed updateSubmissionVideoUrl ===")
+    return { success: true, views: videoInfo.views }
+  } catch (error) {
+    console.error("Error in updateSubmissionVideoUrl:", error)
+    throw error
   }
 }

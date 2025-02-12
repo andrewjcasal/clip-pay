@@ -22,7 +22,7 @@ export default async function BrandOnboardingStep1() {
 
   // If user already has an organization name, redirect to step 2
   if (profile?.organization_name) {
-    redirect("/onboarding/brand/step2")
+    redirect("/onboarding/brand/payments")
   }
 
   return <Step1Form />

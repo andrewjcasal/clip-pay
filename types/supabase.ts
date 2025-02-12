@@ -129,6 +129,11 @@ export interface Database {
           stripe_account_id: string | null
           stripe_account_status: string | null
           total_earned: number | null
+          tiktok_oauth_state: string | null
+          tiktok_connected: boolean
+          tiktok_access_token: string | null
+          tiktok_refresh_token: string | null
+          tiktok_open_id: string | null
           created_at: string
           updated_at: string | null
         }
@@ -138,6 +143,11 @@ export interface Database {
           stripe_account_id?: string | null
           stripe_account_status?: string | null
           total_earned?: number | null
+          tiktok_oauth_state?: string | null
+          tiktok_connected?: boolean
+          tiktok_access_token?: string | null
+          tiktok_refresh_token?: string | null
+          tiktok_open_id?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -147,6 +157,11 @@ export interface Database {
           stripe_account_id?: string | null
           stripe_account_status?: string | null
           total_earned?: number | null
+          tiktok_oauth_state?: string | null
+          tiktok_connected?: boolean
+          tiktok_access_token?: string | null
+          tiktok_refresh_token?: string | null
+          tiktok_open_id?: string | null
           created_at?: string
           updated_at?: string | null
         }

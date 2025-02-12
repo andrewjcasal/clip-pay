@@ -182,12 +182,34 @@ export function DashboardHeader({ userType, email }: DashboardHeaderProps) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button
-                onClick={() => router.push("/settings")}
-                className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
-              >
-                Settings
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
+                    Settings
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 bg-white border-zinc-200"
+                >
+                  <DropdownMenuItem
+                    className="text-zinc-600 hover:text-zinc-900 focus:text-zinc-900 focus:bg-zinc-50"
+                    onClick={() => {
+                      router.push("/settings")
+                      setIsNavOpen(false)
+                    }}
+                  >
+                    Account Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-600 hover:text-red-700 focus:text-red-700 hover:bg-red-50 focus:bg-red-50"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Log Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
