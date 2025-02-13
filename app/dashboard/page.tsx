@@ -31,11 +31,16 @@ export interface Campaign {
   title: string
   budget_pool: string
   rpm: string
-  guidelines: string
-  status: string
-  brand: Brand
-  submission: Submission | null
+  guidelines: string | null
+  status: string | null
   video_outline: string | null
+  brand: {
+    payment_verified?: boolean
+    profile?: {
+      organization_name: string
+    }
+  }
+  submission: Submission | null
 }
 
 export interface CampaignWithSubmissions extends Campaign {

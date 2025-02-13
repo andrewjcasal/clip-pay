@@ -96,8 +96,13 @@ export class TikTokAPI {
     }
 
     const apiUrl = "https://open.tiktokapis.com/v2/video/query/?fields=id,title,view_count,create_time"
+    const requestBody = {
+      filters: {
+        video_ids: [videoId]
+      }
+    }
     console.log("Making request to TikTok API:", apiUrl)
-    console.log("Request body:", JSON.stringify({ video_ids: [videoId] }, null, 2))
+    console.log("Request body:", JSON.stringify(requestBody, null, 2))
 
     try {
       const response = await fetch(apiUrl, {
@@ -106,9 +111,7 @@ export class TikTokAPI {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          video_ids: [videoId],
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const responseData = await response.json()

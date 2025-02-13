@@ -21,12 +21,26 @@ export const getCreatorCampaigns = async () => {
 
   try {
     console.log("Fetching campaigns with query...")
+
+    // First, let's check all campaigns without joins
+    const { data: allCampaigns, error: campaignsError } = await supabase
+      .from("campaigns")
+      .select("*")
+    console.log("All campaigns (no joins):", allCampaigns)
+
+    // Then check brands separately
+    const { data: allBrands, error: brandsError } = await supabase
+      .from("brands")
+      .select("*")
+    console.log("All brands:", allBrands)
+
     const { data: campaigns, error } = await supabase
       .from("campaigns")
       .select(
         `
         *,
         brand:brands!inner (
+          id,
           payment_verified,
           user_id
         ),
@@ -43,7 +57,6 @@ export const getCreatorCampaigns = async () => {
         `
       )
       .eq("status", "active")
-      .eq("submissions.user_id", user.id)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -59,26 +72,63 @@ export const getCreatorCampaigns = async () => {
 
     console.log("Raw campaigns data:", campaigns)
 
+    // Add debug logging for campaigns length
+    console.log("Number of campaigns found:", campaigns?.length || 0)
+
+    // Log each campaign's basic info
+    campaigns?.forEach((campaign, index) => {
+      console.log(`Campaign ${index + 1} details:`, {
+        id: campaign.id,
+        title: campaign.title,
+        status: campaign.status,
+        brand_id: campaign.brand?.id,
+        brand_user_id: campaign.brand?.user_id,
+        brand_payment_verified: campaign.brand?.payment_verified,
+      })
+    })
+
     // Get brand profiles in a separate query
     const brandUserIds = campaigns.map((campaign) => campaign.brand.user_id)
-    const { data: brandProfiles } = await supabase
+    console.log("Brand user IDs to look up:", brandUserIds)
+
+    const { data: brandProfiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, organization_name")
-      .in("id", brandUserIds)
+      .select("user_id, organization_name")
+      .in("user_id", brandUserIds)
+
+    if (profileError) {
+      console.error("Error fetching brand profiles:", profileError)
+    }
 
     console.log("Brand profiles:", brandProfiles)
 
     // Create a map for quick lookup
     const profileMap = new Map(
       brandProfiles?.map((profile) => [
-        profile.id,
+        profile.user_id,
         profile.organization_name,
       ]) || []
+    )
+
+    console.log("Profile map entries:", Array.from(profileMap.entries()))
+    console.log(
+      "Looking up brand name for user_id:",
+      campaigns[0]?.brand.user_id
+    )
+    console.log(
+      "Found brand name:",
+      profileMap.get(campaigns[0]?.brand.user_id)
     )
 
     // Transform the data to match the expected format
     const transformedCampaigns: CreatorCampaign[] = campaigns.map(
       (campaign: any) => {
+        const brandName = profileMap.get(campaign.brand.user_id)
+        console.log(`Brand name lookup for campaign ${campaign.id}:`, {
+          brand_user_id: campaign.brand.user_id,
+          found_name: brandName,
+        })
+
         // Calculate remaining budget
         const totalSpent =
           campaign.submissions
@@ -104,7 +154,7 @@ export const getCreatorCampaigns = async () => {
           status: campaign.status,
           video_outline: campaign.video_outline,
           brand: {
-            name: profileMap.get(campaign.brand.user_id) || "Unknown Brand",
+            name: brandName || "Unknown Brand",
             payment_verified: campaign.brand?.payment_verified || false,
           },
           submission: campaign.submission?.[0] || null,

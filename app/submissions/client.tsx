@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { X, Search, Star } from "lucide-react"
+import { X, Search, Star, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -399,14 +399,32 @@ export function SubmissionsClient({
                 {selectedSubmission.status === "approved" && (
                   <div className="space-y-4">
                     <div className="bg-[#5865F2]/10 border border-[#5865F2]/20 p-4 rounded-lg">
-                      <h4 className="text-sm font-medium text-[#5865F2] mb-2">
-                        Public Video URL
-                      </h4>
-                      {selectedSubmission.video_url ? (
-                        <div className="space-y-3">
-                          <p className="text-sm text-zinc-600">
-                            {selectedSubmission.video_url}
-                          </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-[#5865F2]">
+                          Public Video URL
+                        </h4>
+                        {selectedSubmission.video_url && (
+                          <Button
+                            onClick={() => {
+                              setVideoUrls((prev) => ({
+                                ...prev,
+                                [selectedSubmission.id]:
+                                  selectedSubmission.video_url || "",
+                              }))
+                              setUpdatingSubmissionId(selectedSubmission.id)
+                            }}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-zinc-100"
+                          >
+                            <Pencil className="h-4 w-4 text-zinc-500" />
+                          </Button>
+                        )}
+                      </div>
+                      {selectedSubmission.video_url &&
+                      updatingSubmissionId !== selectedSubmission.id ? (
+                        <div className="break-all text-sm text-zinc-600">
+                          {selectedSubmission.video_url}
                         </div>
                       ) : (
                         <div className="space-y-2">

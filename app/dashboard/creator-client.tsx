@@ -9,6 +9,7 @@ import {
   Users,
   ArrowUpRight,
   RotateCw,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,12 +36,10 @@ interface Campaign {
   rpm: string
   guidelines: string | null
   status: string | null
+  video_outline: string | null
   brand: {
     name: string
-    payment_verified?: boolean
-    profile?: {
-      organization_name: string
-    }
+    payment_verified: boolean
   }
   submission: {
     id: string
@@ -97,12 +96,12 @@ function CampaignCard({
         <div className="flex items-center gap-1 mt-1">
           <span className="text-sm text-zinc-500">by</span>
           <span className="text-sm text-zinc-600">
-            {campaign.brand?.profile?.organization_name || "Unknown Brand"}
+            {campaign.brand?.name || "Unknown Brand"}
           </span>
           {campaign.brand?.payment_verified && (
-            <span className="inline-flex items-center gap-1 text-[#5865F2]">
+            <span className="inline-flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-[#5865F2]"></span>
-              <span className="text-xs">Verified</span>
+              <span className="text-xs text-[#5865F2]">Verified</span>
             </span>
           )}
         </div>
@@ -166,6 +165,7 @@ export function CreatorDashboardClient({
   const [copiedCampaign, setCopiedCampaign] = useState<string | null>(null)
   const [videoModalOpen, setVideoModalOpen] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
@@ -251,6 +251,15 @@ export function CreatorDashboardClient({
 
     return () => clearInterval(pollInterval)
   }, [campaigns, selectedCampaign])
+
+  useEffect(() => {
+    if (selectedCampaign?.submission?.video_url) {
+      setVideoUrl(selectedCampaign.submission.video_url)
+    } else {
+      setVideoUrl("")
+    }
+    setIsEditing(false)
+  }, [selectedCampaign])
 
   const handleShowNewCampaigns = () => {
     setCampaigns((prev) => [...newCampaigns, ...prev])
@@ -374,8 +383,19 @@ export function CreatorDashboardClient({
         })
       )
 
+      // Update selected campaign if it's the one being edited
+      if (selectedCampaign?.submission?.id === submissionId) {
+        setSelectedCampaign({
+          ...selectedCampaign,
+          submission: {
+            ...selectedCampaign.submission,
+            video_url: videoUrl,
+          },
+        })
+      }
+
+      setIsEditing(false)
       toast.success("Video URL updated successfully!")
-      setVideoUrl("")
     } catch (error) {
       console.error("Error updating video URL:", error)
       toast.error("Failed to update video URL. Please try again.")
@@ -429,32 +449,54 @@ export function CreatorDashboardClient({
                   update your submission with a public video URL.
                 </p>
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="publicVideoUrl"
-                    className="text-sm font-medium text-zinc-900"
-                  >
-                    Public Video URL
-                  </Label>
-                  <Input
-                    id="publicVideoUrl"
-                    type="url"
-                    placeholder="Enter public video URL (YouTube, TikTok, etc.)"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    className="h-10 bg-white border-zinc-200 text-zinc-900 focus:border-[#5865F2] focus:ring-[#5865F2]/20"
-                  />
-                  <Button
-                    onClick={() =>
-                      selectedCampaign.submission &&
-                      handleUpdateVideoUrl(selectedCampaign.submission.id)
-                    }
-                    disabled={
-                      !videoUrl || updatingUrl || !selectedCampaign.submission
-                    }
-                    className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white mt-3"
-                  >
-                    {updatingUrl ? "Updating..." : "Update Video URL"}
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="publicVideoUrl"
+                      className="text-sm font-medium text-zinc-900"
+                    >
+                      Public Video URL
+                    </Label>
+                    {selectedCampaign.submission?.video_url && (
+                      <Button
+                        onClick={() => setIsEditing(!isEditing)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-zinc-100"
+                      >
+                        <Pencil className="h-4 w-4 text-zinc-500" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    {selectedCampaign.submission?.video_url && !isEditing ? (
+                      <div className="bg-[#5865F2]/10 text-[#5865F2] p-3 rounded-lg border border-[#5865F2]/20 break-all">
+                        {selectedCampaign.submission.video_url}
+                      </div>
+                    ) : (
+                      <Input
+                        id="publicVideoUrl"
+                        type="url"
+                        placeholder="Enter public video URL (YouTube, TikTok, etc.)"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        className="h-10 bg-white border-zinc-200 text-zinc-900 focus:border-[#5865F2] focus:ring-[#5865F2]/20"
+                      />
+                    )}
+                  </div>
+                  {(isEditing || !selectedCampaign.submission?.video_url) && (
+                    <Button
+                      onClick={() =>
+                        selectedCampaign.submission &&
+                        handleUpdateVideoUrl(selectedCampaign.submission.id)
+                      }
+                      disabled={
+                        !videoUrl || updatingUrl || !selectedCampaign.submission
+                      }
+                      className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white mt-3"
+                    >
+                      {updatingUrl ? "Updating..." : "Update Video URL"}
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -799,9 +841,7 @@ export function CreatorDashboardClient({
                         </h2>
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-zinc-600">
-                            by{" "}
-                            {selectedCampaign.brand?.profile
-                              ?.organization_name || "Unknown Brand"}
+                            by {selectedCampaign.brand?.name || "Unknown Brand"}
                           </p>
                           {selectedCampaign.brand?.payment_verified && (
                             <span className="inline-flex items-center gap-1.5 bg-[#5865F2]/10 text-[#5865F2] px-2.5 py-1 rounded-full text-xs font-medium border border-[#5865F2]/20">

@@ -191,7 +191,7 @@ export async function updateSubmissionVideoUrl(
         views: videoInfo.views,
       })
       .eq("id", submissionId)
-      .eq("creator_id", user.id)
+      .eq("user_id", user.id)
       .select()
       .single()
 
