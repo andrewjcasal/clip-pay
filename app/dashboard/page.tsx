@@ -15,16 +15,16 @@ export interface Brand {
 export interface Submission {
   id: string
   status: string
-  video_url: string
+  video_url: string | null
   file_path: string | null
   campaign_id: string
-  transcription: string
+  transcription: string | null
   user_id: string
   created_at: string
   views: number
   creator: {
-    full_name: string
-    email: string
+    full_name: string | null
+    email: string | null
   }
 }
 

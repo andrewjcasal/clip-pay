@@ -46,7 +46,7 @@ type Submission = {
   created_at: string
   transcription: string | null
   views: number
-  creator_id: string
+  user_id: string
   creator: SubmissionCreator
   payout_status?: string
 }
@@ -206,6 +206,7 @@ export function DashboardClient({
                     ...campaign.submissions,
                     {
                       ...newSubmission,
+                      user_id: newSubmission.creator_id,
                       creator: {
                         full_name: newSubmission.creator.organization_name,
                         email: newSubmission.creator.email,
