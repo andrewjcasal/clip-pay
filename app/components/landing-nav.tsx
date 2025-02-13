@@ -13,18 +13,6 @@ export function LandingNav() {
           </div>
           <div className="flex items-center gap-4">
             <Link
-              href="/how-it-works"
-              className="text-sm text-zinc-600 hover:text-zinc-900"
-            >
-              How it Works
-            </Link>
-            <Link
-              href="/faq"
-              className="text-sm text-zinc-600 hover:text-zinc-900"
-            >
-              FAQ
-            </Link>
-            <Link
               href="/login"
               className="text-sm text-zinc-600 hover:text-zinc-900"
             >

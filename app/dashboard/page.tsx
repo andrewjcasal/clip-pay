@@ -19,7 +19,7 @@ export interface Submission {
   file_path: string | null
   campaign_id: string
   transcription: string
-  creator_id: string
+  user_id: string
   created_at: string
   views: number
   creator: {

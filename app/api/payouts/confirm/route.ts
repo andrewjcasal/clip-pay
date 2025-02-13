@@ -73,6 +73,35 @@ export async function POST(request: Request) {
         throw new Error("Failed to update transaction status")
       }
 
+      // Process referrer payment if applicable
+      if (
+        paymentIntent.metadata.referrerId &&
+        Number(paymentIntent.metadata.referrerPayment) > 0
+      ) {
+        // Get referrer's Stripe account
+        const { data: referrer } = await supabase
+          .from("creators")
+          .select("stripe_account_id")
+          .eq("user_id", paymentIntent.metadata.referrerId)
+          .single()
+
+        if (referrer?.stripe_account_id) {
+          // Create transfer to referrer
+          await stripe.transfers.create({
+            amount: Math.round(
+              Number(paymentIntent.metadata.referrerPayment) * 100
+            ),
+            currency: "usd",
+            destination: referrer.stripe_account_id,
+            metadata: {
+              submissionId: paymentIntent.metadata.submissionId,
+              type: "referral_payment",
+              referrerId: paymentIntent.metadata.referrerId,
+            },
+          })
+        }
+      }
+
       // Update submission status
       const { error: submissionError } = await supabase
         .from("submissions")

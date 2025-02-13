@@ -15,13 +15,17 @@ export interface SubmissionWithDetails {
   video_url: string | null
   file_path: string | null
   payout_due_date: string | null
-  campaign: Pick<CampaignRow, "title" | "rpm" | "budget_pool"> & {
+  views: number
+  campaign: Pick<
+    CampaignRow,
+    "title" | "rpm" | "budget_pool" | "referral_bonus_rate"
+  > & {
     brand: {
       profile: Pick<ProfileRow, "organization_name">
     }
   }
   creator: {
-    profile: Pick<ProfileRow, "organization_name">
+    profile: Pick<ProfileRow, "organization_name" | "referred_by">
   }
 }
 
@@ -68,6 +72,7 @@ export default async function PayoutsPage() {
         title,
         rpm,
         budget_pool,
+        referral_bonus_rate,
         brand:brands!inner (
           profile:profiles (
             organization_name
@@ -76,13 +81,15 @@ export default async function PayoutsPage() {
       ),
       creator:creators (
         profile:profiles (
-          organization_name
+          organization_name,
+          referred_by
         )
       )
     `
     )
     .eq("status", "approved")
     .eq("campaign.user_id", brand.user_id) // Filter by brand's ID
+    .not("video_url", "is", null) // Only get submissions with a video URL
     .lte("payout_due_date", new Date().toISOString())
     .order("payout_due_date", { ascending: true })
     .returns<SubmissionWithDetails[]>()

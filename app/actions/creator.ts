@@ -184,6 +184,7 @@ export async function updateSubmissionVideoUrl(
     })
 
     // Update the submission with video URL and views
+    console.log("Attempting to update submission with user_id:", user.id)
     const { data: updatedSubmission, error: updateError } = await supabase
       .from("submissions")
       .update({
@@ -197,6 +198,24 @@ export async function updateSubmissionVideoUrl(
 
     if (updateError) {
       console.error("Error updating submission:", updateError)
+      // Let's first check if the submission exists and who owns it
+      const { data: existingSubmission, error: checkError } = await supabase
+        .from("submissions")
+        .select("id, user_id")
+        .eq("id", submissionId)
+        .single()
+
+      if (checkError) {
+        console.error("Error checking submission:", checkError)
+        throw new Error("Failed to verify submission ownership")
+      } else {
+        console.log("Found submission:", existingSubmission)
+        if (existingSubmission.user_id !== user.id) {
+          throw new Error(
+            "You do not have permission to update this submission"
+          )
+        }
+      }
       throw updateError
     }
 

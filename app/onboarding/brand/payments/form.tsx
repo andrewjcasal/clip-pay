@@ -114,7 +114,7 @@ function PaymentForm() {
           onClick={handleSkip}
           disabled={isLoading}
           variant="outline"
-          className="flex-1 h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+          className="dark:text-white flex-1 h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
         >
           Skip for Now
         </Button>

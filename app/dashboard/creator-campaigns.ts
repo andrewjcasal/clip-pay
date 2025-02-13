@@ -44,11 +44,13 @@ export const getCreatorCampaigns = async () => {
           payment_verified,
           user_id
         ),
-        submission:submissions (
+        submission:submissions!left (
           id,
           status,
           video_url,
-          file_path
+          file_path,
+          campaign_id,
+          views
         ),
         submissions:submissions (
           payout_amount,
@@ -57,8 +59,10 @@ export const getCreatorCampaigns = async () => {
         `
       )
       .eq("status", "active")
+      .eq("submission.user_id", user.id)
       .order("created_at", { ascending: false })
 
+    console.log("11 Campaigns:", campaigns)
     if (error) {
       console.error("Error fetching campaigns:", error)
       console.error("Error details:", {

@@ -220,28 +220,51 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
               </div>
 
               <div className="space-y-3">
-                {/* Submission Video */}
-                {selectedSubmission.file_path && (
-                  <div
-                    className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg cursor-pointer hover:bg-zinc-100"
-                    onClick={() => {
-                      setSelectedVideo(
-                        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`
-                      )
-                      setVideoModalOpen(true)
-                    }}
-                  >
-                    <Video className="w-4 h-4 text-zinc-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900 mb-0.5">
-                        Submission Video
-                      </p>
-                      <p className="text-sm text-zinc-600 hover:text-zinc-900 truncate block">
-                        Click to view video
-                      </p>
+                {/* Video Section */}
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Submission Video - 1/3 width */}
+                  {selectedSubmission.file_path && (
+                    <div
+                      className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg cursor-pointer hover:bg-zinc-100"
+                      onClick={() => {
+                        setSelectedVideo(
+                          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`
+                        )
+                        setVideoModalOpen(true)
+                      }}
+                    >
+                      <Video className="w-4 h-4 text-zinc-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 mb-0.5">
+                          Submission Video
+                        </p>
+                        <p className="text-sm text-zinc-600 hover:text-zinc-900 truncate block">
+                          Click to view video
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* Public Video URL - 2/3 width */}
+                  {selectedSubmission.video_url && (
+                    <div className="col-span-2 flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg">
+                      <ExternalLink className="w-4 h-4 text-zinc-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 mb-0.5">
+                          Public Video URL
+                        </p>
+                        <a
+                          href={selectedSubmission.video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-zinc-600 hover:text-zinc-900 truncate block"
+                        >
+                          {selectedSubmission.video_url}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Video Modal */}
                 <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
@@ -262,196 +285,207 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                     </div>
                   </DialogContent>
                 </Dialog>
-
-                {/* Public Video URL */}
-                {selectedSubmission.video_url && (
-                  <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-3 rounded-lg">
-                    <ExternalLink className="w-4 h-4 text-zinc-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900 mb-0.5">
-                        Public Video URL
-                      </p>
-                      <a
-                        href={selectedSubmission.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-zinc-600 hover:text-zinc-900 truncate block"
-                      >
-                        {selectedSubmission.video_url}
-                      </a>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
-                  <p className="text-sm text-zinc-600 mb-1">RPM</p>
-                  <p className="text-xl font-semibold text-zinc-900">
-                    ${Number(selectedSubmission.campaign.rpm).toFixed(2)}
-                  </p>
-                </div>
-                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
-                  <p className="text-sm text-zinc-600 mb-1">Budget Pool</p>
-                  <p className="text-xl font-semibold text-zinc-900">
-                    $
-                    {Number(selectedSubmission.campaign.budget_pool).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
-                <Label
-                  htmlFor={`views-${selectedSubmission.id}`}
-                  className="text-sm font-medium text-zinc-900"
-                >
-                  Verified Views
-                </Label>
-                <div className="mt-2">
-                  <Input
-                    id={`views-${selectedSubmission.id}`}
-                    type="number"
-                    min="0"
-                    value={verifiedViews[selectedSubmission.id] || ""}
-                    onChange={(e) =>
-                      handleViewsChange(selectedSubmission.id, e.target.value)
-                    }
-                    placeholder="Enter verified view count"
-                    className="max-w-xs text-zinc-900"
-                  />
-                </div>
-              </div>
-
-              {verifiedViews[selectedSubmission.id] ? (
-                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-zinc-900">
-                      Payment Calculation
-                    </h3>
-                    <p className="text-sm text-zinc-600 mt-1">
-                      {verifiedViews[selectedSubmission.id].toLocaleString()}{" "}
-                      views × $
-                      {Number(selectedSubmission.campaign.rpm).toFixed(2)} for
-                      every 1,000 views
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-zinc-600">Creator Payment</p>
-                      <p className="text-sm font-medium text-zinc-900">
-                        $
-                        {calculatePaymentAmount(
-                          verifiedViews[selectedSubmission.id],
-                          Number(selectedSubmission.campaign.rpm)
-                        ).toFixed(2)}
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-zinc-600 mb-1">
+                        Campaign Stats
                       </p>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-1">
-                        <p className="text-sm text-zinc-600">Service Fee</p>
-                        <span className="text-xs text-zinc-500">(20%)</span>
-                      </div>
-                      <p className="text-sm font-medium text-zinc-900">
-                        +$
-                        {calculateServiceFee(
-                          calculatePaymentAmount(
-                            verifiedViews[selectedSubmission.id],
-                            Number(selectedSubmission.campaign.rpm)
-                          )
-                        ).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="h-px bg-zinc-200" />
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-semibold text-zinc-900">
-                        Total Cost
-                      </p>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        $
-                        {calculateTotalCost(
-                          calculatePaymentAmount(
-                            verifiedViews[selectedSubmission.id],
-                            Number(selectedSubmission.campaign.rpm)
-                          )
-                        ).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-zinc-200">
-                    {isPaymentTooLow(
-                      calculatePaymentAmount(
-                        verifiedViews[selectedSubmission.id],
-                        Number(selectedSubmission.campaign.rpm)
-                      )
-                    ) ? (
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-amber-600">
-                          Creator Payment must be at least $25.00 to be
-                          processed
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
                         <div>
-                          <p className="text-sm text-zinc-600">
-                            Campaign Budget
-                          </p>
-                          <div className="flex items-center gap-1 mt-1">
-                            <p className="text-sm text-zinc-900 font-medium">
-                              Remaining after payment:
-                            </p>
-                            <p className="text-sm font-semibold text-zinc-900">
-                              $
-                              {(
-                                Number(
-                                  selectedSubmission.campaign.budget_pool
-                                ) -
-                                calculatePaymentAmount(
-                                  verifiedViews[selectedSubmission.id],
-                                  Number(selectedSubmission.campaign.rpm)
-                                )
-                              ).toFixed(2)}
-                            </p>
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-1">
-                            Only the creator payment amount is deducted from the
-                            budget pool
-                          </p>
+                          <span className="text-sm text-zinc-500">RPM:</span>{" "}
+                          <span className="font-semibold text-zinc-900">
+                            $
+                            {Number(selectedSubmission.campaign.rpm).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="h-4 w-px bg-zinc-200" />
+                        <div>
+                          <span className="text-sm text-zinc-500">Budget:</span>{" "}
+                          <span className="font-semibold text-zinc-900">
+                            $
+                            {Number(
+                              selectedSubmission.campaign.budget_pool
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="h-4 w-px bg-zinc-200" />
+                        <div>
+                          <span className="text-sm text-zinc-500">Views:</span>{" "}
+                          <span className="font-semibold text-zinc-900">
+                            {selectedSubmission.views.toLocaleString()}
+                          </span>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              ) : null}
+              </div>
+
+              {selectedSubmission.creator.profile.referred_by && (
+                <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+                  <p className="text-sm text-zinc-600 mb-1">Referred by</p>
+                  <p className="text-xl font-semibold text-zinc-900">
+                    {selectedSubmission.creator.profile.organization_name ||
+                      "Unknown Creator"}
+                  </p>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    Will receive $
+                    {Number(
+                      selectedSubmission.campaign.referral_bonus_rate
+                    ).toFixed(2)}{" "}
+                    per 1,000 views
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-900">
+                    Payment Calculation
+                  </h3>
+                  <p className="text-sm text-zinc-600 mt-1">
+                    {selectedSubmission.views.toLocaleString()} views × $
+                    {Number(selectedSubmission.campaign.rpm).toFixed(2)} for
+                    every 1,000 views
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-zinc-600">Creator Payment</p>
+                    <p className="text-sm font-medium text-zinc-900">
+                      $
+                      {calculatePaymentAmount(
+                        selectedSubmission.views,
+                        Number(selectedSubmission.campaign.rpm)
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  {selectedSubmission.creator.profile.referred_by && (
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm text-zinc-600">
+                          Referrer Payment
+                        </p>
+                        <span className="text-xs text-zinc-500">
+                          ($
+                          {Number(
+                            selectedSubmission.campaign.referral_bonus_rate
+                          ).toFixed(2)}
+                          /1K views)
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-zinc-900">
+                        $
+                        {(
+                          (selectedSubmission.views *
+                            Number(
+                              selectedSubmission.campaign.referral_bonus_rate
+                            )) /
+                          1000
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-zinc-600">Service Fee</p>
+                      <span className="text-xs text-zinc-500">(20%)</span>
+                    </div>
+                    <p className="text-sm font-medium text-zinc-900">
+                      +$
+                      {calculateServiceFee(
+                        calculatePaymentAmount(
+                          selectedSubmission.views,
+                          Number(selectedSubmission.campaign.rpm)
+                        )
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="h-px bg-zinc-200" />
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-semibold text-zinc-900">
+                      Total Cost
+                    </p>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      $
+                      {calculateTotalCost(
+                        calculatePaymentAmount(
+                          selectedSubmission.views,
+                          Number(selectedSubmission.campaign.rpm)
+                        )
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-zinc-200">
+                  {isPaymentTooLow(
+                    calculatePaymentAmount(
+                      selectedSubmission.views,
+                      Number(selectedSubmission.campaign.rpm)
+                    )
+                  ) ? (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-amber-600">
+                        Creator Payment must be at least $25.00 to be processed
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-zinc-600">Campaign Budget</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <p className="text-sm text-zinc-900 font-medium">
+                            Remaining after payment:
+                          </p>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            $
+                            {(
+                              Number(selectedSubmission.campaign.budget_pool) -
+                              calculatePaymentAmount(
+                                selectedSubmission.views,
+                                Number(selectedSubmission.campaign.rpm)
+                              )
+                            ).toFixed(2)}
+                          </p>
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          Only the creator payment amount is deducted from the
+                          budget pool
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <div className="flex justify-end items-center gap-3">
-                {verifiedViews[selectedSubmission.id] &&
-                isPaymentTooLow(
+                {isPaymentTooLow(
                   calculatePaymentAmount(
-                    verifiedViews[selectedSubmission.id],
+                    selectedSubmission.views,
                     Number(selectedSubmission.campaign.rpm)
                   )
                 ) ? (
-                  <div />
-                ) : null}
-                <Button
-                  onClick={() => handleProcessPayment(selectedSubmission.id)}
-                  disabled={
-                    processingPayment ||
-                    !verifiedViews[selectedSubmission.id] ||
-                    isPaymentTooLow(
-                      calculatePaymentAmount(
-                        verifiedViews[selectedSubmission.id],
-                        Number(selectedSubmission.campaign.rpm)
-                      )
-                    )
-                  }
-                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                >
-                  {processingPayment ? "Processing..." : "Process Payment"}
-                </Button>
+                  <Button
+                    onClick={() => setSelectedSubmission(null)}
+                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] text-white dark:text-white"
+                  >
+                    Acknowledge
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleProcessPayment(selectedSubmission.id)}
+                    disabled={processingPayment}
+                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                  >
+                    {processingPayment ? "Processing..." : "Process Payment"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

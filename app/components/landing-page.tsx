@@ -222,7 +222,7 @@ function StepCard({
           {number}
         </div>
         <div className="ml-3">
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
           <p className="text-zinc-600">{description}</p>
         </div>
       </div>
@@ -312,7 +312,7 @@ export function LandingPage({ view }: LandingPageProps) {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h2 className="text-3xl font-bold text-center mb-8">
+          <h2 className="text-3xl text-zinc-900 font-bold text-center mb-8">
             {content.howItWorks.title}
           </h2>
           <div
@@ -333,7 +333,7 @@ export function LandingPage({ view }: LandingPageProps) {
           </div>
         </div>
 
-        <h2 className="text-3xl font-bold text-center mb-6 mt-6">
+        <h2 className="text-3xl font-bold text-center mb-6 mt-6 text-zinc-900">
           {view === "brands"
             ? "Ready to Boost Your Brand with Creator Content?"
             : "Ready to Monetize Your Creativity?"}

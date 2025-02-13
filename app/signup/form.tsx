@@ -228,7 +228,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+            className="w-full h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] dark:text-white hover:text-[#5865F2] hover:bg-transparent"
             onClick={async () => {
               try {
                 setIsLoading(true)

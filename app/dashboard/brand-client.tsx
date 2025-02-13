@@ -163,7 +163,7 @@ export function DashboardClient({
     rpm: "",
     guidelines: "",
     video_outline: "",
-    referral_bonus_rate: "10",
+    referral_bonus_rate: "0.10",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
@@ -330,7 +330,7 @@ export function DashboardClient({
         rpm: "",
         guidelines: "",
         video_outline: "",
-        referral_bonus_rate: "10",
+        referral_bonus_rate: "0.10",
       })
       setShowSuccessDialog(true)
 
@@ -519,7 +519,7 @@ export function DashboardClient({
                     <RotateCw className="w-5 h-5 text-zinc-600" />
                   </div>
                   <span className="text-sm font-medium text-zinc-600">
-                    Average RPM
+                    Average CPM
                   </span>
                 </div>
               </div>
@@ -547,7 +547,7 @@ export function DashboardClient({
               </div>
               <Button
                 onClick={() => setShowNewCampaign(true)}
-                className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               >
                 Create Campaign
               </Button>
@@ -616,23 +616,27 @@ export function DashboardClient({
                 >
                   Budget Pool <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="budget_pool"
-                  value={newCampaign.budget_pool}
-                  onChange={(e) => {
-                    setNewCampaign({
-                      ...newCampaign,
-                      budget_pool: e.target.value,
-                    })
-                    setErrors({ ...errors, budget_pool: false })
-                  }}
-                  className={cn(
-                    "bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]",
-                    errors.budget_pool && "ring-2 ring-red-500 border-red-500"
-                  )}
-                  placeholder="Enter budget amount"
-                  type="number"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                    $
+                  </span>
+                  <Input
+                    id="budget_pool"
+                    value={newCampaign.budget_pool}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9]/g, "")
+                      setNewCampaign({
+                        ...newCampaign,
+                        budget_pool: value || "",
+                      })
+                      setErrors({ ...errors, budget_pool: false })
+                    }}
+                    className="pl-7 bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]"
+                    placeholder="0"
+                    type="text"
+                    min="0"
+                  />
+                </div>
                 {errors.budget_pool && (
                   <p className="text-xs text-red-500">
                     Valid budget amount is required
@@ -647,25 +651,42 @@ export function DashboardClient({
                   htmlFor="rpm"
                   className="text-sm font-medium text-zinc-900"
                 >
-                  RPM (Rate per 1000 views){" "}
+                  CPM (Cost per 1000 views){" "}
                   <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="rpm"
-                  value={newCampaign.rpm}
-                  onChange={(e) => {
-                    setNewCampaign({ ...newCampaign, rpm: e.target.value })
-                    setErrors({ ...errors, rpm: false })
-                  }}
-                  className={cn(
-                    "bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]",
-                    errors.rpm && "ring-2 ring-red-500 border-red-500"
-                  )}
-                  placeholder="Enter RPM"
-                  type="number"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                    $
+                  </span>
+                  <Input
+                    id="rpm"
+                    value={newCampaign.rpm}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9.]/g, "")
+                      const parsed = parseFloat(value)
+                      if (!isNaN(parsed)) {
+                        setNewCampaign({
+                          ...newCampaign,
+                          rpm: parsed.toFixed(2),
+                        })
+                      } else {
+                        setNewCampaign({
+                          ...newCampaign,
+                          rpm: "",
+                        })
+                      }
+                      setErrors({ ...errors, rpm: false })
+                    }}
+                    className="pl-7 bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]"
+                    placeholder="0.00"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                  />
+                </div>
                 {errors.rpm && (
-                  <p className="text-xs text-red-500">Valid RPM is required</p>
+                  <p className="text-xs text-red-500">Valid CPM is required</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -673,33 +694,40 @@ export function DashboardClient({
                   htmlFor="referral_bonus_rate"
                   className="text-sm font-medium text-zinc-900"
                 >
-                  Referral Bonus Rate (%)
+                  Referral Bonus Rate ($ per 1000 views)
                 </Label>
                 <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                    $
+                  </span>
                   <Input
                     id="referral_bonus_rate"
+                    value={newCampaign.referral_bonus_rate}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9.]/g, "")
+                      const parsed = parseFloat(value)
+                      if (!isNaN(parsed)) {
+                        const capped = Math.min(parsed, 1)
+                        setNewCampaign({
+                          ...newCampaign,
+                          referral_bonus_rate: capped.toFixed(2),
+                        })
+                      } else {
+                        setNewCampaign({
+                          ...newCampaign,
+                          referral_bonus_rate: "",
+                        })
+                      }
+                    }}
+                    className="pl-7 h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black"
+                    placeholder="0.00"
                     type="number"
                     min="0"
-                    max="100"
-                    step="0.1"
-                    placeholder="Enter referral bonus rate"
-                    value={newCampaign.referral_bonus_rate}
-                    onChange={(e) =>
-                      setNewCampaign({
-                        ...newCampaign,
-                        referral_bonus_rate: e.target.value,
-                      })
-                    }
-                    className="bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2] pr-8"
+                    max="1"
+                    step="0.01"
+                    inputMode="decimal"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">
-                    %
-                  </span>
                 </div>
-                <p className="text-xs text-zinc-500">
-                  Percentage of RPM that referrers earn as bonus when their
-                  referred creators submit content
-                </p>
               </div>
             </div>
 
@@ -736,7 +764,7 @@ export function DashboardClient({
                 htmlFor="video_outline"
                 className="text-sm font-medium text-zinc-900"
               >
-                Video Outline
+                Video Outline (Content Brief)
               </Label>
               <Textarea
                 id="video_outline"
@@ -756,14 +784,14 @@ export function DashboardClient({
               <Button
                 variant="outline"
                 onClick={() => setShowNewCampaign(false)}
-                className="border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                className="dark:bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50 dark:border-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-50"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreateCampaign}
                 disabled={isLoading}
-                className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               >
                 {isLoading ? "Creating..." : "Create Campaign"}
               </Button>
@@ -942,7 +970,7 @@ export function DashboardClient({
                           {selectedCampaign.video_outline && (
                             <div>
                               <h4 className="text-sm font-medium text-zinc-900 mb-2">
-                                Video Outline
+                                Video Outline (Content Brief)
                               </h4>
                               <div className="bg-zinc-50 border border-zinc-200 p-3 rounded-lg">
                                 <p className="text-sm text-zinc-700 whitespace-pre-wrap">
@@ -962,13 +990,34 @@ export function DashboardClient({
                         Selected Submission
                       </h3>
                       <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-3">
-                        {selectedSubmission.video_url && (
+                        {(selectedSubmission.video_url ||
+                          selectedSubmission.file_path) && (
                           <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
                             <ReactPlayer
-                              url={selectedSubmission.video_url}
+                              url={
+                                selectedSubmission.video_url ||
+                                (selectedSubmission.file_path
+                                  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`
+                                  : undefined)
+                              }
                               width="100%"
                               height="100%"
                               controls
+                              playing={false}
+                              playsinline
+                              config={{
+                                file: {
+                                  attributes: {
+                                    crossOrigin: "anonymous",
+                                  },
+                                },
+                              }}
+                              onError={(e) => {
+                                console.error("Video playback error:", e)
+                                toast.error(
+                                  "Failed to load video. Please try again."
+                                )
+                              }}
                             />
                           </div>
                         )}
@@ -996,7 +1045,7 @@ export function DashboardClient({
                                 onClick={() =>
                                   handleApprove(selectedSubmission.id)
                                 }
-                                className="bg-green-600 hover:bg-green-700 text-white"
+                                className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:hover:bg-green-700 dark:text-white"
                               >
                                 Approve
                               </Button>
@@ -1005,7 +1054,7 @@ export function DashboardClient({
                                   handleReject(selectedSubmission.id)
                                 }
                                 variant="outline"
-                                className="border-red-600 text-red-600 hover:bg-red-50"
+                                className="border-red-600 text-red-600 hover:bg-red-50 dark:hover:text-red-600 dark:bg-white-600 dark:border-red-600 dark:text-red-600 dark:hover:bg-red-50"
                               >
                                 Reject
                               </Button>

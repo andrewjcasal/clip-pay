@@ -134,7 +134,7 @@ export default function SignInForm() {
 
           <Button
             type="submit"
-            className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
             disabled={isLoading}
           >
             {isLoading ? "Signing in..." : "Sign In"}
@@ -154,14 +154,14 @@ export default function SignInForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+            className="w-full h-11 dark:text-white border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
             onClick={async () => {
               try {
                 setIsLoading(true)
                 setError(null)
                 const url = await signInWithGoogle("creator")
                 if (url) {
-                  window.location.href = url
+                  window.location.assign(url)
                 } else {
                   throw new Error("No authentication URL returned")
                 }
@@ -172,7 +172,6 @@ export default function SignInForm() {
                     ? error.message
                     : "Failed to sign in with Google"
                 )
-              } finally {
                 setIsLoading(false)
               }
             }}

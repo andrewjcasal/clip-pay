@@ -47,6 +47,7 @@ interface Campaign {
     video_url: string | null
     file_path: string | null
     campaign_id: string
+    views?: number
   } | null
 }
 
@@ -525,7 +526,7 @@ export function CreatorDashboardClient({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="file" className="text-zinc-300">
+            <Label htmlFor="file" className="text-zinc-900">
               Upload Video
             </Label>
             <div
@@ -727,7 +728,13 @@ export function CreatorDashboardClient({
               </div>
               <div className="flex items-end justify-between">
                 <p className="text-xl lg:text-2xl font-semibold text-zinc-900">
-                  0
+                  {campaigns
+                    .reduce((total, campaign) => {
+                      // Get the views from the submission if it exists
+                      const submissionViews = campaign.submission?.views || 0
+                      return total + submissionViews
+                    }, 0)
+                    .toLocaleString()}
                 </p>
               </div>
             </Card>

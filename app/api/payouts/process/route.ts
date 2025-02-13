@@ -89,11 +89,15 @@ export async function POST(request: Request) {
           id,
           title,
           rpm,
-          budget_pool
+          budget_pool,
+          referral_bonus_rate
         ),
         creator:creators (
           user_id,
-          stripe_account_id
+          stripe_account_id,
+          profile:profiles (
+            referred_by
+          )
         )
       `
       )
@@ -111,9 +115,28 @@ export async function POST(request: Request) {
 
     // Calculate payment amount
     const paymentAmount =
-      (verifiedViews * Number(submission.campaign.rpm)) / 1000
+      (submission.views * Number(submission.campaign.rpm)) / 1000
     const serviceFee = paymentAmount * 0.2 // 20% service fee
     const totalAmount = paymentAmount + serviceFee
+
+    // Calculate referrer payment if applicable
+    let referrerPayment = 0
+    let referrerStripeAccountId = null
+    if (submission.creator.profile.referred_by) {
+      // Get referrer's Stripe account
+      const { data: referrer } = await supabase
+        .from("creators")
+        .select("stripe_account_id")
+        .eq("user_id", submission.creator.profile.referred_by)
+        .single()
+
+      if (referrer?.stripe_account_id) {
+        referrerPayment =
+          (submission.views * Number(submission.campaign.referral_bonus_rate)) /
+          1000
+        referrerStripeAccountId = referrer.stripe_account_id
+      }
+    }
 
     // Validate payment amount
     if (paymentAmount <= 0) {
@@ -130,7 +153,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create Stripe PaymentIntent with automatic transfer to creator
+    // Create Stripe PaymentIntent with automatic transfer to creator and referrer
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // Convert to cents
       currency: "usd",
@@ -147,6 +170,8 @@ export async function POST(request: Request) {
         creatorId: submission.creator.user_id,
         paymentAmount: paymentAmount.toString(),
         serviceFee: serviceFee.toString(),
+        referrerPayment: referrerPayment.toString(),
+        referrerId: submission.creator.profile.referred_by || "",
       },
     })
 
@@ -159,6 +184,8 @@ export async function POST(request: Request) {
         amount: totalAmount,
         creator_amount: paymentAmount,
         service_fee: serviceFee,
+        referrer_amount: referrerPayment,
+        referrer_id: submission.creator.profile.referred_by || null,
         stripe_payment_intent_id: paymentIntent.id,
         status: "pending",
         creator_payout_status: "pending",
@@ -176,7 +203,7 @@ export async function POST(request: Request) {
       .from("submissions")
       .update({
         status: "payment_pending",
-        views: verifiedViews,
+        views: submission.views,
         payout_amount: totalAmount,
       })
       .eq("id", submissionId)

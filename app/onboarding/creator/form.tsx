@@ -68,14 +68,14 @@ export function CreatorOnboardingForm() {
               htmlFor="organizationName"
               className="text-sm font-medium text-[#1D2939]"
             >
-              Organization Name
+              Name
             </Label>
             <Input
               id="organizationName"
               value={organizationName}
               onChange={(e) => setOrganizationName(e.target.value)}
               className="h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black placeholder:text-[#475467]"
-              placeholder="Enter your organization name"
+              placeholder="Enter your name"
               required
             />
           </div>

@@ -12,18 +12,6 @@ export function LandingNav({ view }: { view: "brands" | "creators" }) {
             </Link>
             <div className="flex items-center gap-6">
               <Link
-                href="/how-it-works"
-                className="text-sm text-white/80 hover:text-white"
-              >
-                How it Works
-              </Link>
-              <Link
-                href="/faq"
-                className="text-sm text-white/80 hover:text-white"
-              >
-                FAQ
-              </Link>
-              <Link
                 href="/brands"
                 className="text-sm text-white/80 hover:text-white"
               >
@@ -49,7 +37,7 @@ export function LandingNav({ view }: { view: "brands" | "creators" }) {
             >
               <Button
                 variant="outline"
-                className="rounded-full border-white/20 text-black hover:bg-zinc/10"
+                className="dark:text-white rounded-full border-white/20 text-black hover:bg-zinc/10"
               >
                 Sign Up
               </Button>
