@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createServerActionClient } from "@/app/auth/actions"
 import { Database } from "@/types/supabase"
 
@@ -13,16 +13,18 @@ function getProjectRef() {
   return matches[1]
 }
 
+export const dynamic = "force-dynamic"
+
 export async function GET(
-  request: Request,
-  context: { params: { userType: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ userType: string }> }
 ) {
   console.log("=== Auth Callback Start ===")
   const requestUrl = new URL(request.url)
   console.log("Request URL:", requestUrl.toString())
 
   // Get and validate user type from URL params
-  const userType = context.params.userType
+  const { userType } = await params
   console.log("User Type from URL:", userType)
 
   if (!userType || !["creator", "brand"].includes(userType)) {

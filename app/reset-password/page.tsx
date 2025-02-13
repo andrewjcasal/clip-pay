@@ -1,5 +1,3 @@
-"use client"
-
 import Image from "next/image"
 import Link from "next/link"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
@@ -9,9 +7,10 @@ import { redirect } from "next/navigation"
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: { error?: string; error_description?: string }
+  searchParams: Promise<{ error?: string; error_description?: string }>
 }) {
   const supabase = await createServerSupabaseClient()
+  const { error, error_description } = await searchParams
 
   // Get the current session
   const {
@@ -46,11 +45,10 @@ export default async function ResetPasswordPage({
           <p className="text-[#475467]">Enter your new password below.</p>
         </div>
 
-        {searchParams.error ? (
+        {error ? (
           <div className="text-center">
             <p className="text-sm text-red-500">
-              {searchParams.error_description ||
-                "An error occurred during password reset"}
+              {error_description || "An error occurred during password reset"}
             </p>
             <Link
               href="/forgot-password"

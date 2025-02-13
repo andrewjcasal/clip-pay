@@ -6,8 +6,10 @@ import { getCreatorCampaigns } from "./creator-campaigns"
 import { getBrandCampaigns } from "./brand-campaigns"
 
 export interface Brand {
-  name: string
-  payment_verified: boolean
+  payment_verified?: boolean
+  profile?: {
+    organization_name: string
+  }
 }
 
 export interface Submission {
@@ -35,10 +37,8 @@ export interface Campaign {
   status: string | null
   video_outline: string | null
   brand: {
-    payment_verified?: boolean
-    profile?: {
-      organization_name: string
-    }
+    name: string
+    payment_verified: boolean
   }
   submission: Submission | null
 }

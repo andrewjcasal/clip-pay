@@ -27,6 +27,13 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "100mb"
     },
   },
+  // Suppress punycode deprecation warning
+  webpack: (config, { isServer }) => {
+    config.ignoreWarnings = [
+      { module: /node_modules\/punycode/ }
+    ];
+    return config;
+  },
 }
 
 export default nextConfig
