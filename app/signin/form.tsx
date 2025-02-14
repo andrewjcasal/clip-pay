@@ -99,12 +99,6 @@ export default function SignInForm() {
               >
                 Password
               </Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-[#5865F2] hover:text-[#4752C4]"
-              >
-                Forgot password?
-              </Link>
             </div>
             <div className="relative">
               <Input
@@ -139,6 +133,14 @@ export default function SignInForm() {
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-[#5865F2] hover:text-[#4752C4]"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

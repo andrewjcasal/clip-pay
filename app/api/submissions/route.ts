@@ -4,6 +4,7 @@ import { Deepgram } from "@deepgram/sdk"
 import { spawn } from "child_process"
 import { unlink, readFile, writeFile } from "fs/promises"
 import { SupabaseClient } from "@supabase/supabase-js"
+import { evaluateSubmission } from "@/lib/openai"
 
 if (!process.env.DEEPGRAM_API_KEY) {
   throw new Error("Missing DEEPGRAM_API_KEY environment variable")
@@ -125,16 +126,89 @@ async function processVideo(
       throw new Error("Failed to get transcription from Deepgram")
     }
 
-    // Update submission with transcription
-    const { error: updateError } = await supabase
+    const transcription =
+      response.results.channels[0].alternatives[0].transcript
+
+    // Get submission and campaign details
+    const { data: submission, error: submissionError } = await supabase
+      .from("submissions")
+      .select(
+        `
+        *,
+        campaign:campaigns (
+          title,
+          guidelines,
+          video_outline,
+          brand:brands (
+            auto_approval_enabled
+          )
+        )
+      `
+      )
+      .eq("id", submissionId)
+      .single()
+
+    if (submissionError || !submission) {
+      throw new Error("Failed to get submission details")
+    }
+
+    // Check if auto-approval is enabled for this brand
+    if (submission.campaign.brand.auto_approval_enabled) {
+      console.log("Auto-approval is enabled, evaluating submission...")
+      try {
+        const evaluation = await evaluateSubmission(
+          submission.campaign.title,
+          submission.campaign.guidelines || "",
+          submission.campaign.video_outline,
+          transcription
+        )
+
+        console.log("Evaluation result:", evaluation)
+
+        // Only auto-approve/reject if confidence is high enough
+        if (evaluation.confidence >= 0.8) {
+          const newStatus = evaluation.approved ? "approved" : "rejected"
+          await supabase
+            .from("submissions")
+            .update({
+              status: newStatus,
+              transcription,
+              processed_at: new Date().toISOString(),
+              auto_moderation_result: evaluation,
+            })
+            .eq("id", submissionId)
+
+          // Create notification for the creator
+          await supabase.from("notifications").insert({
+            recipient_id: submission.user_id,
+            type: `submission_${newStatus}`,
+            title: `Submission ${newStatus === "approved" ? "Approved" : "Rejected"}`,
+            message: `Your submission for "${submission.campaign.title}" has been automatically ${newStatus}. Reason: ${evaluation.reason}`,
+            metadata: {
+              submission_id: submissionId,
+              campaign_title: submission.campaign.title,
+              auto_moderated: true,
+            },
+          })
+
+          console.log(`Submission auto-${newStatus}`)
+          return
+        }
+      } catch (error) {
+        console.error("Error in auto-moderation:", error)
+        // Continue with normal processing if auto-moderation fails
+      }
+    }
+
+    // If we reach here, either auto-approval is disabled or evaluation wasn't conclusive
+    // Update submission with transcription only
+    await supabase
       .from("submissions")
       .update({
-        transcription: response.results.channels[0].alternatives[0].transcript,
+        transcription,
         processed_at: new Date().toISOString(),
       })
       .eq("id", submissionId)
-
-    if (updateError) throw updateError
 
     // Cleanup temp files
     await Promise.all([unlink(tempVideoPath), unlink(tempAudioPath)])

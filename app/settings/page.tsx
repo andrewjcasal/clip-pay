@@ -28,6 +28,8 @@ export default async function SettingsPage() {
 
   // Get creator's Stripe account status if they are a creator
   let hasStripeAccount = false
+  let autoApprovalEnabled = false
+
   if (profile.user_type === "creator") {
     const { data: creator } = await supabase
       .from("creators")
@@ -37,6 +39,15 @@ export default async function SettingsPage() {
 
     // Only consider the account connected if it's active
     hasStripeAccount = creator?.stripe_account_status === "active"
+  } else if (profile.user_type === "brand") {
+    // Get brand's auto-approval setting
+    const { data: brand } = await supabase
+      .from("brands")
+      .select("auto_approval_enabled")
+      .eq("user_id", user.id)
+      .single()
+
+    autoApprovalEnabled = brand?.auto_approval_enabled || false
   }
 
   return (
@@ -63,6 +74,7 @@ export default async function SettingsPage() {
                 email={user.email || ""}
                 userType={profile.user_type as "creator" | "brand"}
                 hasStripeAccount={hasStripeAccount}
+                autoApprovalEnabled={autoApprovalEnabled}
               />
             </div>
           </div>

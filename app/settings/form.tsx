@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { updateUserEmail, updateUserPassword } from "./actions"
+import {
+  updateUserEmail,
+  updateUserPassword,
+  updateAutoApproval,
+} from "./actions"
 import { ArrowRight, Shield } from "lucide-react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
@@ -17,17 +21,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { PaymentMethodDisplay } from "./payment-method"
+import { Switch } from "@/components/ui/switch"
 
 interface SettingsFormProps {
   email: string
   userType: "creator" | "brand"
   hasStripeAccount: boolean
+  autoApprovalEnabled?: boolean
 }
 
 export function SettingsForm({
   email,
   userType,
   hasStripeAccount,
+  autoApprovalEnabled = false,
 }: SettingsFormProps) {
   const [newEmail, setNewEmail] = useState("")
   const [confirmEmail, setConfirmEmail] = useState("")
@@ -37,6 +44,8 @@ export function SettingsForm({
   const [passwordError, setPasswordError] = useState("")
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [isAutoApprovalEnabled, setIsAutoApprovalEnabled] =
+    useState(autoApprovalEnabled)
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,8 +102,7 @@ export function SettingsForm({
         <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
           <DialogTrigger asChild>
             <Button
-              className="text-zinc-900 border-zinc-900"
-              variant="outline"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               size="sm"
             >
               Change email
@@ -141,7 +149,7 @@ export function SettingsForm({
                 <Button
                   type="submit"
                   disabled={!newEmail || !confirmEmail}
-                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
                 >
                   Update Email
                 </Button>
@@ -162,8 +170,7 @@ export function SettingsForm({
         <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
           <DialogTrigger asChild>
             <Button
-              className="text-zinc-900 border-zinc-900"
-              variant="outline"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               size="sm"
             >
               Change password
@@ -210,7 +217,7 @@ export function SettingsForm({
                 <Button
                   type="submit"
                   disabled={!newPassword || !confirmPassword}
-                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                  className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
                 >
                   Update Password
                 </Button>
@@ -219,6 +226,57 @@ export function SettingsForm({
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Auto-Approval Section for Brands */}
+      {userType === "brand" && (
+        <div className="py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-medium text-zinc-900">
+                  Auto-Approval Settings
+                </h3>
+                <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">
+                  Beta
+                </span>
+              </div>
+              <p className="text-sm text-zinc-600 mt-1">
+                Automatically approve or reject submissions based on your
+                campaign requirements
+              </p>
+            </div>
+            <Switch
+              checked={isAutoApprovalEnabled}
+              onCheckedChange={async (checked) => {
+                try {
+                  await updateAutoApproval(checked)
+                  setIsAutoApprovalEnabled(checked)
+                  toast.success(
+                    checked
+                      ? "Auto-approval enabled successfully"
+                      : "Auto-approval disabled successfully"
+                  )
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to update auto-approval settings"
+                  )
+                }
+              }}
+            />
+          </div>
+          {isAutoApprovalEnabled && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-700">
+                When enabled, submissions will be automatically approved if they
+                meet your campaign requirements. This includes minimum view
+                count, engagement rate, and other metrics you've specified.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Payment Settings Section for Brands */}
       {userType === "brand" && (
@@ -257,8 +315,7 @@ export function SettingsForm({
           </div>
           {hasStripeAccount ? (
             <Button
-              className="text-zinc-900 border-zinc-900"
-              variant="outline"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               size="sm"
               onClick={() => (window.location.href = "/earnings")}
             >
@@ -266,8 +323,7 @@ export function SettingsForm({
             </Button>
           ) : (
             <Button
-              className="text-zinc-900 border-zinc-900"
-              variant="outline"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
               size="sm"
               onClick={() => (window.location.href = "/api/stripe/connect")}
             >
