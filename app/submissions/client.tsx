@@ -19,6 +19,7 @@ import ReactPlayer from "react-player"
 import type { SubmissionWithCampaign } from "./page"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Checkbox } from "@/components/ui/checkbox"
+import { VideoUrlInput } from "@/components/video-url-input"
 
 interface SubmissionsClientProps {
   submissions: SubmissionWithCampaign[]
@@ -28,7 +29,7 @@ interface SubmissionsClientProps {
 type TabType = "approved" | "pending" | "fulfilled" | "archived"
 
 export function SubmissionsClient({
-  submissions,
+  submissions: initialSubmissions,
   email,
 }: SubmissionsClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("approved")
@@ -40,6 +41,7 @@ export function SubmissionsClient({
   >(null)
   const [videoModalOpen, setVideoModalOpen] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
+  const [submissions, setSubmissions] = useState(initialSubmissions)
 
   const tabs: { id: TabType; label: string }[] = [
     { id: "approved", label: "Approved Submissions" },
@@ -64,21 +66,55 @@ export function SubmissionsClient({
   })
 
   const handleUpdateVideoUrl = async (submissionId: string) => {
-    const url = videoUrls[submissionId]
-    if (!url) return
+    console.log("=== Starting handleUpdateVideoUrl in submissions client ===")
+    console.log("Submission ID:", submissionId)
+    console.log("Video URL state:", videoUrls)
+    console.log("Current video URL for submission:", videoUrls[submissionId])
 
-    setUpdatingSubmissionId(submissionId)
+    if (!videoUrls[submissionId]) {
+      console.log("No video URL found for submission, returning early")
+      return
+    }
+
     try {
-      await updateSubmissionVideoUrl(submissionId, url)
+      console.log("Setting updating submission ID:", submissionId)
+      setUpdatingSubmissionId(submissionId)
+
+      console.log("Calling updateSubmissionVideoUrl with:", {
+        submissionId,
+        videoUrl: videoUrls[submissionId],
+      })
+      const result = await updateSubmissionVideoUrl(
+        submissionId,
+        videoUrls[submissionId]
+      )
+      console.log("Update result:", result)
+
+      if (!result.success) {
+        console.log("Update failed with error:", result.error)
+        throw new Error(result.error || "Failed to update video URL")
+      }
+
+      console.log("Update successful, clearing video URL from state")
+      setVideoUrls((prev) => {
+        const newState = {
+          ...prev,
+          [submissionId]: "",
+        }
+        console.log("New video URLs state:", newState)
+        return newState
+      })
+
       toast.success("Video URL updated successfully!")
-      setVideoUrls((prev) => ({ ...prev, [submissionId]: "" }))
-      // Refresh the page to get updated data
-      window.location.reload()
     } catch (error) {
       console.error("Error updating video URL:", error)
-      toast.error("Failed to update video URL. Please try again.")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update video URL"
+      )
     } finally {
+      console.log("Clearing updating submission ID")
       setUpdatingSubmissionId(null)
+      console.log("=== Completed handleUpdateVideoUrl ===")
     }
   }
 
@@ -399,63 +435,30 @@ export function SubmissionsClient({
                 {selectedSubmission.status === "approved" && (
                   <div className="space-y-4">
                     <div className="bg-[#5865F2]/10 border border-[#5865F2]/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-[#5865F2]">
-                          Public Video URL
-                        </h4>
-                        {selectedSubmission.video_url && (
-                          <Button
-                            onClick={() => {
-                              setVideoUrls((prev) => ({
-                                ...prev,
-                                [selectedSubmission.id]:
-                                  selectedSubmission.video_url || "",
-                              }))
-                              setUpdatingSubmissionId(selectedSubmission.id)
-                            }}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-zinc-100"
-                          >
-                            <Pencil className="h-4 w-4 text-zinc-500" />
-                          </Button>
-                        )}
-                      </div>
-                      {selectedSubmission.video_url &&
-                      updatingSubmissionId !== selectedSubmission.id ? (
-                        <div className="break-all text-sm text-zinc-600">
-                          {selectedSubmission.video_url}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Input
-                            type="url"
-                            placeholder="Enter public video URL (YouTube, TikTok, etc.)"
-                            value={videoUrls[selectedSubmission.id] || ""}
-                            onChange={(e) =>
-                              setVideoUrls((prev) => ({
-                                ...prev,
-                                [selectedSubmission.id]: e.target.value,
-                              }))
-                            }
-                            className="h-10 bg-white border-zinc-200 text-zinc-900 focus:border-[#5865F2] focus:ring-[#5865F2]/20"
-                          />
-                          <Button
-                            onClick={() =>
-                              handleUpdateVideoUrl(selectedSubmission.id)
-                            }
-                            disabled={
-                              !videoUrls[selectedSubmission.id] ||
-                              updatingSubmissionId === selectedSubmission.id
-                            }
-                            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                          >
-                            {updatingSubmissionId === selectedSubmission.id
-                              ? "Updating..."
-                              : "Update Video URL"}
-                          </Button>
-                        </div>
-                      )}
+                      <VideoUrlInput
+                        submissionId={selectedSubmission.id}
+                        currentUrl={selectedSubmission.video_url}
+                        onUpdate={(views) => {
+                          // Update the submissions list with new views
+                          const updatedSubmissions = submissions.map((sub) =>
+                            sub.id === selectedSubmission.id
+                              ? {
+                                  ...sub,
+                                  views,
+                                  video_url: videoUrls[selectedSubmission.id],
+                                }
+                              : sub
+                          )
+                          setSubmissions(updatedSubmissions)
+
+                          // Update the selected submission
+                          setSelectedSubmission({
+                            ...selectedSubmission,
+                            views,
+                            video_url: videoUrls[selectedSubmission.id],
+                          })
+                        }}
+                      />
                     </div>
                   </div>
                 )}

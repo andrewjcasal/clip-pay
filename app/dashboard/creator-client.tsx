@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import ReactPlayer from "react-player"
+import { VideoUrlInput } from "@/components/video-url-input"
 
 interface Campaign {
   id: string
@@ -362,46 +363,77 @@ export function CreatorDashboardClient({
   }
 
   const handleUpdateVideoUrl = async (submissionId: string) => {
-    if (!videoUrl) return
+    console.log("=== Starting handleUpdateVideoUrl in creator dashboard ===")
+    console.log("Submission ID:", submissionId)
+    console.log("Video URL state:", videoUrl)
 
-    setUpdatingUrl(true)
+    if (!videoUrl) {
+      console.log("No video URL provided, returning early")
+      return
+    }
+
     try {
-      await updateSubmissionVideoUrl(submissionId, videoUrl)
+      console.log("Setting updating state to true")
+      setUpdatingUrl(true)
 
-      // Update local state
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) => {
+      console.log("Calling updateSubmissionVideoUrl with:", {
+        submissionId,
+        videoUrl,
+      })
+      const result = await updateSubmissionVideoUrl(submissionId, videoUrl)
+      console.log("Update result:", result)
+
+      if (!result.success) {
+        console.log("Update failed with error:", result.error)
+        throw new Error(result.error || "Failed to update video URL")
+      }
+
+      console.log("Update successful, updating local campaign state")
+      setCampaigns((prevCampaigns) => {
+        const newCampaigns = prevCampaigns.map((campaign) => {
           if (campaign.submission?.id === submissionId) {
+            console.log("Updating campaign:", campaign.id)
             return {
               ...campaign,
               submission: {
                 ...campaign.submission,
                 video_url: videoUrl,
+                views: result.views || 0,
               },
             }
           }
           return campaign
         })
-      )
+        console.log("New campaigns state:", newCampaigns)
+        return newCampaigns
+      })
 
-      // Update selected campaign if it's the one being edited
+      console.log("Checking if selected campaign needs update")
       if (selectedCampaign?.submission?.id === submissionId) {
+        console.log("Updating selected campaign")
         setSelectedCampaign({
           ...selectedCampaign,
           submission: {
             ...selectedCampaign.submission,
             video_url: videoUrl,
+            views: result.views || 0,
           },
         })
       }
 
+      console.log("Resetting edit state and video URL")
       setIsEditing(false)
+      setVideoUrl("") // Reset video URL after successful update
       toast.success("Video URL updated successfully!")
     } catch (error) {
       console.error("Error updating video URL:", error)
-      toast.error("Failed to update video URL. Please try again.")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update video URL"
+      )
     } finally {
+      console.log("Setting updating state to false")
       setUpdatingUrl(false)
+      console.log("=== Completed handleUpdateVideoUrl ===")
     }
   }
 
@@ -449,56 +481,42 @@ export function CreatorDashboardClient({
                   Your submission has been approved! To start earning, please
                   update your submission with a public video URL.
                 </p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label
-                      htmlFor="publicVideoUrl"
-                      className="text-sm font-medium text-zinc-900"
-                    >
-                      Public Video URL
-                    </Label>
-                    {selectedCampaign.submission?.video_url && (
-                      <Button
-                        onClick={() => setIsEditing(!isEditing)}
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-zinc-100"
-                      >
-                        <Pencil className="h-4 w-4 text-zinc-500" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    {selectedCampaign.submission?.video_url && !isEditing ? (
-                      <div className="bg-[#5865F2]/10 text-[#5865F2] p-3 rounded-lg border border-[#5865F2]/20 break-all">
-                        {selectedCampaign.submission.video_url}
-                      </div>
-                    ) : (
-                      <Input
-                        id="publicVideoUrl"
-                        type="url"
-                        placeholder="Enter public video URL (YouTube, TikTok, etc.)"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        className="h-10 bg-white border-zinc-200 text-zinc-900 focus:border-[#5865F2] focus:ring-[#5865F2]/20"
-                      />
-                    )}
-                  </div>
-                  {(isEditing || !selectedCampaign.submission?.video_url) && (
-                    <Button
-                      onClick={() =>
-                        selectedCampaign.submission &&
-                        handleUpdateVideoUrl(selectedCampaign.submission.id)
-                      }
-                      disabled={
-                        !videoUrl || updatingUrl || !selectedCampaign.submission
-                      }
-                      className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white mt-3"
-                    >
-                      {updatingUrl ? "Updating..." : "Update Video URL"}
-                    </Button>
-                  )}
-                </div>
+                <VideoUrlInput
+                  submissionId={selectedCampaign.submission.id}
+                  currentUrl={selectedCampaign.submission.video_url}
+                  onUpdate={(views) => {
+                    // Update the campaigns list with new views
+                    setCampaigns((prevCampaigns) => {
+                      return prevCampaigns.map((campaign) => {
+                        if (campaign.id === selectedCampaign.id) {
+                          return {
+                            ...campaign,
+                            submission: {
+                              ...campaign.submission!,
+                              views,
+                              // Preserve all required fields
+                              id: campaign.submission!.id,
+                              status: campaign.submission!.status,
+                              video_url: campaign.submission!.video_url,
+                              file_path: campaign.submission!.file_path,
+                              campaign_id: campaign.submission!.campaign_id,
+                            },
+                          }
+                        }
+                        return campaign
+                      })
+                    })
+
+                    // Update selected campaign
+                    setSelectedCampaign({
+                      ...selectedCampaign,
+                      submission: {
+                        ...selectedCampaign.submission,
+                        views,
+                      },
+                    })
+                  }}
+                />
               </div>
             ) : (
               <p className="text-sm">

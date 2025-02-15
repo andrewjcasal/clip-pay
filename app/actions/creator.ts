@@ -130,7 +130,7 @@ export async function updateSubmissionVideoUrl(
   submissionId: string,
   videoUrl: string
 ) {
-  console.log("=== Starting updateSubmissionVideoUrl ===")
+  console.log("=== Starting updateSubmissionVideoUrl server action ===")
   console.log("Submission ID:", submissionId)
   console.log("Video URL:", videoUrl)
 
@@ -143,15 +143,21 @@ export async function updateSubmissionVideoUrl(
     console.log("No authenticated user found")
     return { success: false, error: "Not authenticated" }
   }
+  console.log("Authenticated user:", user.id)
 
   try {
     // Get the creator's TikTok access token
     console.log("Fetching creator's TikTok access token...")
-    const { data: creator } = await supabase
+    const { data: creator, error: creatorError } = await supabase
       .from("creators")
       .select("tiktok_access_token")
       .eq("user_id", user.id)
       .single()
+
+    if (creatorError) {
+      console.error("Error fetching creator:", creatorError)
+      throw creatorError
+    }
 
     if (!creator?.tiktok_access_token) {
       console.log("No TikTok access token found for creator")
@@ -168,7 +174,8 @@ export async function updateSubmissionVideoUrl(
     console.log("Fetching video info from TikTok...")
     const videoInfo = await tiktokApi.getVideoInfo(
       videoUrl,
-      creator.tiktok_access_token
+      creator.tiktok_access_token,
+      user.id
     )
     console.log("Video info from TikTok:", videoInfo)
 

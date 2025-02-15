@@ -1,3 +1,5 @@
+import { createServerSupabaseClient } from "@/lib/supabase-server"
+
 interface TokenResponse {
   access_token: string
   refresh_token: string
@@ -20,6 +22,7 @@ export class TikTokAPI {
   private accessToken: string | null = null
   private tokenExpiry: number | null = null
   private isSandbox: boolean = true // Add sandbox mode flag
+  private baseUrl = "https://open.tiktokapis.com/v2"
 
   constructor() {
     this.clientKey = process.env.TIKTOK_CLIENT_KEY || ""
@@ -82,73 +85,121 @@ export class TikTokAPI {
     return this.accessToken
   }
 
-  async getVideoInfo(url: string, accessToken: string): Promise<VideoInfo | null> {
+  async getVideoInfo(videoUrl: string, accessToken: string, userId?: string): Promise<{
+    views: number
+  }> {
     console.log("=== TikTok getVideoInfo Start ===")
-    console.log("Input URL:", url)
-    console.log("Using access token:", accessToken.slice(0, 10) + "...")
-    
-    const videoId = this.extractVideoId(url)
-    console.log("Extracted video ID:", videoId)
-    
-    if (!videoId) {
-      console.error("Failed to extract video ID from URL:", url)
-      throw new Error("Invalid TikTok URL")
-    }
-
-    const apiUrl = "https://open.tiktokapis.com/v2/video/query/?fields=id,title,view_count,create_time"
-    const requestBody = {
-      filters: {
-        video_ids: [videoId]
-      }
-    }
-    console.log("Making request to TikTok API:", apiUrl)
-    console.log("Request body:", JSON.stringify(requestBody, null, 2))
+    console.log("Video URL:", videoUrl)
+    console.log("Access Token (first 10 chars):", accessToken?.slice(0, 10))
+    console.log("User ID:", userId)
 
     try {
-      const response = await fetch(apiUrl, {
+      console.log("Extracting video ID...")
+      const videoId = this.extractVideoId(videoUrl)
+      if (!videoId) {
+        throw new Error("Could not extract video ID from URL")
+      }
+      console.log("Extracted video ID:", videoId)
+
+      console.log("Making request to TikTok API...")
+      const requestBody = {
+        filters: {
+          video_ids: [videoId]
+        }
+      }
+      console.log("Request body:", JSON.stringify(requestBody, null, 2))
+
+      const response = await fetch(`${this.baseUrl}/video/query/?fields=view_count`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "application/json",
         },
         body: JSON.stringify(requestBody),
       })
 
+      console.log("TikTok API Response Status:", response.status)
       const responseData = await response.json()
-      console.log("TikTok API Raw Response:", JSON.stringify(responseData, null, 2))
+      console.log("TikTok API Response:", JSON.stringify(responseData, null, 2))
 
       if (!response.ok) {
-        console.error("TikTok API error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          data: responseData
-        })
-        throw new Error(`TikTok API error: ${JSON.stringify(responseData)}`)
+        const error = responseData
+        console.log("Response not OK, error:", error)
+        
+        // If token is invalid and we have the user ID, try to refresh it
+        if (
+          error.error?.code === "access_token_invalid" &&
+          userId
+        ) {
+          console.log("Token invalid, attempting refresh flow...")
+          // Get the refresh token from the database
+          const supabase = await createServerSupabaseClient()
+          console.log("Fetching refresh token for user:", userId)
+          const { data: creator, error: dbError } = await supabase
+            .from("creators")
+            .select("tiktok_refresh_token")
+            .eq("user_id", userId)
+            .single()
+
+          if (dbError) {
+            console.error("Error fetching refresh token:", dbError)
+            throw new Error("Failed to fetch refresh token")
+          }
+
+          console.log("Creator data:", creator)
+          console.log("Refresh token found:", creator?.tiktok_refresh_token ? "Yes" : "No")
+
+          if (creator?.tiktok_refresh_token) {
+            console.log("Attempting to refresh token...")
+            // Refresh the token
+            const tokens = await this.refreshAccessToken(creator.tiktok_refresh_token)
+            console.log("Token refresh successful, new access token (first 10 chars):", tokens.access_token.slice(0, 10))
+
+            console.log("Updating tokens in database...")
+            // Update the tokens in the database
+            const { error: updateError } = await supabase
+              .from("creators")
+              .update({
+                tiktok_access_token: tokens.access_token,
+                tiktok_refresh_token: tokens.refresh_token,
+              })
+              .eq("user_id", userId)
+
+            if (updateError) {
+              console.error("Error updating tokens in database:", updateError)
+              throw new Error("Failed to update tokens in database")
+            }
+
+            console.log("Tokens updated successfully, retrying video info request...")
+            // Retry the request with the new access token
+            return this.getVideoInfo(videoUrl, tokens.access_token)
+          } else {
+            console.log("No refresh token found for user")
+            throw new Error("No refresh token available")
+          }
+        }
+
+        throw new Error(`TikTok API error: ${JSON.stringify(error)}`)
       }
 
-      if (!responseData.data || !responseData.data.videos || !responseData.data.videos.length) {
-        console.log("No video data found in response")
-        return null
+      console.log("Successful response, processing data...")
+      if (!responseData.data?.videos || !responseData.data.videos.length) {
+        throw new Error("No video data found in response")
       }
 
-      const video = responseData.data.videos[0]
-      console.log("Processed video data:", {
-        id: video.id,
-        title: video.title,
-        views: video.view_count,
-        create_time: video.create_time
-      })
-      
-      console.log("=== TikTok getVideoInfo End ===")
-      
+      const videoData = responseData.data.videos[0]
+      console.log("Video data:", videoData)
+
+      if (typeof videoData.view_count !== 'number') {
+        throw new Error("Invalid view count in response")
+      }
+
       return {
-        id: video.id,
-        title: video.title,
-        views: video.view_count,
-        create_time: video.create_time,
+        views: videoData.view_count,
       }
     } catch (error) {
-      console.error("Error fetching video info:", error)
+      console.error("Error in getVideoInfo:", error)
       throw error
     }
   }
@@ -168,5 +219,51 @@ export class TikTokAPI {
     }
 
     return null
+  }
+
+  async refreshAccessToken(refreshToken: string): Promise<{
+    access_token: string
+    refresh_token: string
+  }> {
+    console.log("=== Starting Token Refresh ===")
+    console.log("Using refresh token (first 10 chars):", refreshToken.slice(0, 10))
+    console.log("Client key available:", !!this.clientKey)
+    console.log("Client secret available:", !!this.clientSecret)
+
+    try {
+      const response = await fetch(
+        "https://open-api.tiktok.com/oauth/refresh_token/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_key: this.clientKey,
+            client_secret: this.clientSecret,
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+          }),
+        }
+      )
+
+      console.log("Refresh token response status:", response.status)
+      const data = await response.json()
+      console.log("Refresh token response:", JSON.stringify(data, null, 2))
+
+      if (!response.ok) {
+        console.error("Token refresh failed:", data)
+        throw new Error(`Failed to refresh TikTok access token: ${JSON.stringify(data)}`)
+      }
+
+      console.log("Token refresh successful")
+      return {
+        access_token: data.data.access_token,
+        refresh_token: data.data.refresh_token,
+      }
+    } catch (error) {
+      console.error("Error in refreshAccessToken:", error)
+      throw error
+    }
   }
 } 
