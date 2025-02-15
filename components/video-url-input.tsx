@@ -32,7 +32,7 @@ export function VideoUrlInput({
         toast.success("Video URL updated successfully!")
         setIsEditing(false)
         setVideoUrl("")
-        onUpdate?.(result.views)
+        onUpdate?.(result.views || 0)
       } else {
         toast.error(result.error || "Failed to update video URL")
       }
