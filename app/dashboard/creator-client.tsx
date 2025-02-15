@@ -395,11 +395,16 @@ export function CreatorDashboardClient({
             console.log("Updating campaign:", campaign.id)
             return {
               ...campaign,
-              submission: {
-                ...campaign.submission,
-                video_url: videoUrl,
-                views: result.views || 0,
-              },
+              submission: selectedCampaign?.submission
+                ? {
+                    id: selectedCampaign.submission.id,
+                    status: selectedCampaign.submission.status,
+                    video_url: selectedCampaign.submission.video_url,
+                    file_path: selectedCampaign.submission.file_path,
+                    campaign_id: selectedCampaign.submission.campaign_id,
+                    views: result.views,
+                  }
+                : null,
             }
           }
           return campaign
@@ -413,11 +418,16 @@ export function CreatorDashboardClient({
         console.log("Updating selected campaign")
         setSelectedCampaign({
           ...selectedCampaign,
-          submission: {
-            ...selectedCampaign.submission,
-            video_url: videoUrl,
-            views: result.views || 0,
-          },
+          submission: selectedCampaign?.submission
+            ? {
+                id: selectedCampaign.submission.id,
+                status: selectedCampaign.submission.status,
+                video_url: selectedCampaign.submission.video_url,
+                file_path: selectedCampaign.submission.file_path,
+                campaign_id: selectedCampaign.submission.campaign_id,
+                views: result.views,
+              }
+            : null,
         })
       }
 
@@ -491,16 +501,19 @@ export function CreatorDashboardClient({
                         if (campaign.id === selectedCampaign.id) {
                           return {
                             ...campaign,
-                            submission: {
-                              ...campaign.submission!,
-                              views,
-                              // Preserve all required fields
-                              id: campaign.submission!.id,
-                              status: campaign.submission!.status,
-                              video_url: campaign.submission!.video_url,
-                              file_path: campaign.submission!.file_path,
-                              campaign_id: campaign.submission!.campaign_id,
-                            },
+                            submission: selectedCampaign.submission
+                              ? {
+                                  id: selectedCampaign.submission.id,
+                                  status: selectedCampaign.submission.status,
+                                  video_url:
+                                    selectedCampaign.submission.video_url,
+                                  file_path:
+                                    selectedCampaign.submission.file_path,
+                                  campaign_id:
+                                    selectedCampaign.submission.campaign_id,
+                                  views,
+                                }
+                              : null,
                           }
                         }
                         return campaign
@@ -510,10 +523,17 @@ export function CreatorDashboardClient({
                     // Update selected campaign
                     setSelectedCampaign({
                       ...selectedCampaign,
-                      submission: {
-                        ...selectedCampaign.submission,
-                        views,
-                      },
+                      submission: selectedCampaign.submission
+                        ? {
+                            id: selectedCampaign.submission.id,
+                            status: selectedCampaign.submission.status,
+                            video_url: selectedCampaign.submission.video_url,
+                            file_path: selectedCampaign.submission.file_path,
+                            campaign_id:
+                              selectedCampaign.submission.campaign_id,
+                            views,
+                          }
+                        : null,
                     })
                   }}
                 />
