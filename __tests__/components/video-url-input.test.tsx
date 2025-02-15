@@ -4,12 +4,21 @@ import { VideoUrlInput } from "@/components/video-url-input"
 import { updateSubmissionVideoUrl } from "@/app/actions/creator"
 import { toast } from "sonner"
 
-// Mock the dependencies
-jest.mock("@/app/actions/creator")
-jest.mock("sonner")
+jest.mock("@/app/actions/creator", () => ({
+  updateSubmissionVideoUrl: jest.fn(),
+}))
+
+jest.mock("sonner", () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}))
+
+const mockUpdateSubmissionVideoUrl = updateSubmissionVideoUrl as jest.Mock
 
 describe("VideoUrlInput", () => {
-  const mockSubmissionId = "123"
+  const mockSubmissionId = "1234"
   const mockCurrentUrl = "https://example.com/video"
   const mockOnUpdate = jest.fn()
 
@@ -57,7 +66,7 @@ describe("VideoUrlInput", () => {
 
   it("updates video URL successfully", async () => {
     const mockResult = { success: true, views: 100 }
-    ;(updateSubmissionVideoUrl as jest.Mock).mockResolvedValue(mockResult)
+    mockUpdateSubmissionVideoUrl.mockResolvedValue(mockResult)
 
     render(
       <VideoUrlInput
@@ -80,7 +89,7 @@ describe("VideoUrlInput", () => {
     fireEvent.click(screen.getByTestId("update-video-url-button"))
 
     await waitFor(() => {
-      expect(updateSubmissionVideoUrl).toHaveBeenCalledWith(
+      expect(mockUpdateSubmissionVideoUrl).toHaveBeenCalledWith(
         mockSubmissionId,
         "https://example.com/new-video"
       )
@@ -93,7 +102,7 @@ describe("VideoUrlInput", () => {
 
   it("handles update failure", async () => {
     const mockError = "Update failed"
-    ;(updateSubmissionVideoUrl as jest.Mock).mockResolvedValue({
+    mockUpdateSubmissionVideoUrl.mockResolvedValue({
       success: false,
       error: mockError,
     })
@@ -128,23 +137,27 @@ describe("VideoUrlInput", () => {
     render(
       <VideoUrlInput
         submissionId={mockSubmissionId}
-        currentUrl={mockCurrentUrl}
+        currentUrl={null}
         onUpdate={mockOnUpdate}
       />
     )
 
-    // Click edit button
-    fireEvent.click(screen.getByTestId("edit-video-url-button"))
-
+    const input = screen.getByTestId("video-url-input")
     const updateButton = screen.getByTestId("update-video-url-button")
-    expect(updateButton).toBeDisabled()
+
+    // Initially the button should be disabled
+    expect(updateButton).toHaveAttribute("aria-disabled", "true")
 
     // Enter URL
-    const input = screen.getByTestId("video-url-input")
     fireEvent.change(input, {
       target: { value: "https://example.com/new-video" },
     })
+    expect(updateButton).toHaveAttribute("aria-disabled", "false")
 
-    expect(updateButton).not.toBeDisabled()
+    // Clear URL
+    fireEvent.change(input, {
+      target: { value: "" },
+    })
+    expect(updateButton).toHaveAttribute("aria-disabled", "true")
   })
 })

@@ -78,14 +78,15 @@ export function VideoUrlInput({
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
               placeholder="Enter your public video URL"
-              className="flex-1"
+              className="flex-1 text-zinc-900"
               data-testid="video-url-input"
             />
             <Button
               onClick={handleUpdate}
               disabled={!videoUrl || isUpdating}
-              className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="update-video-url-button"
+              aria-disabled={!videoUrl || isUpdating}
             >
               {isUpdating ? "Updating..." : "Update"}
             </Button>
