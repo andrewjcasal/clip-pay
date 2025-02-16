@@ -20,6 +20,7 @@ export function VideoUrlInput({
   const [isEditing, setIsEditing] = useState(false)
   const [videoUrl, setVideoUrl] = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
+  const [displayUrl, setDisplayUrl] = useState(currentUrl)
 
   const handleUpdate = async () => {
     if (!videoUrl) return
@@ -29,10 +30,11 @@ export function VideoUrlInput({
       const result = await updateSubmissionVideoUrl(submissionId, videoUrl)
 
       if (result.success) {
-        toast.success("Video URL updated successfully!")
+        setDisplayUrl(videoUrl)
         setIsEditing(false)
         setVideoUrl("")
         onUpdate?.(result.views || 0)
+        toast.success("Video URL updated successfully!")
       } else {
         toast.error(result.error || "Failed to update video URL")
       }
@@ -51,10 +53,10 @@ export function VideoUrlInput({
         <Label htmlFor="videoUrl" className="text-sm font-medium text-zinc-900">
           Public Video URL
         </Label>
-        {currentUrl && !isEditing && (
+        {displayUrl && !isEditing && (
           <Button
             onClick={() => {
-              setVideoUrl(currentUrl)
+              setVideoUrl(displayUrl)
               setIsEditing(true)
             }}
             variant="ghost"
@@ -67,9 +69,9 @@ export function VideoUrlInput({
         )}
       </div>
       <div className="relative">
-        {currentUrl && !isEditing ? (
+        {displayUrl && !isEditing ? (
           <div className="bg-[#5865F2]/10 text-[#5865F2] p-3 rounded-lg border border-[#5865F2]/20 break-all">
-            {currentUrl}
+            {displayUrl}
           </div>
         ) : (
           <div className="flex gap-2">

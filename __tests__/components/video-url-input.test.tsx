@@ -15,6 +15,10 @@ jest.mock("sonner", () => ({
   },
 }))
 
+jest.mock("lucide-react", () => ({
+  Pencil: () => null,
+}))
+
 const mockUpdateSubmissionVideoUrl = updateSubmissionVideoUrl as jest.Mock
 
 describe("VideoUrlInput", () => {
@@ -159,5 +163,60 @@ describe("VideoUrlInput", () => {
       target: { value: "" },
     })
     expect(updateButton).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("updates display URL and shows success UI after successful submission", async () => {
+    const mockSubmissionId = "1234"
+    const initialUrl = "https://example.com/video"
+    const newUrl = "https://example.com/new-video"
+    const mockViews = 100
+
+    mockUpdateSubmissionVideoUrl.mockResolvedValue({
+      success: true,
+      views: mockViews,
+    })
+
+    render(
+      <VideoUrlInput
+        submissionId={mockSubmissionId}
+        currentUrl={initialUrl}
+        onUpdate={jest.fn()}
+      />
+    )
+
+    // Initially shows the current URL
+    expect(screen.getByText(initialUrl)).toBeInTheDocument()
+
+    // Click edit button to show input
+    fireEvent.click(screen.getByTestId("edit-video-url-button"))
+
+    // Input should be visible with initial URL
+    const input = screen.getByTestId("video-url-input")
+    expect(input).toBeInTheDocument()
+    expect(input).toHaveValue(initialUrl)
+
+    // Enter new URL
+    fireEvent.change(input, { target: { value: newUrl } })
+    expect(input).toHaveValue(newUrl)
+
+    // Click update button
+    fireEvent.click(screen.getByTestId("update-video-url-button"))
+
+    // Wait for update to complete
+    await waitFor(() => {
+      // Input should be hidden
+      expect(screen.queryByTestId("video-url-input")).not.toBeInTheDocument()
+
+      // New URL should be displayed
+      expect(screen.getByText(newUrl)).toBeInTheDocument()
+
+      // Success toast should be shown
+      expect(toast.success).toHaveBeenCalledWith(
+        "Video URL updated successfully!"
+      )
+    })
+
+    // Edit button should be visible again
+    expect(screen.getByTestId("edit-video-url-button")).toBeInTheDocument()
   })
 })
