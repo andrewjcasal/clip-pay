@@ -36,43 +36,64 @@ jest.mock("@/lib/supabase-server", () => ({
 
 describe("Middleware", () => {
   let mockRequest: Partial<NextRequest>
-  const mockSupabase = {
-    auth: {
-      getUser: jest.fn(),
-    },
-    from: jest.fn(),
+  let mockSupabase: {
+    auth: { getUser: jest.Mock }
+    from: jest.Mock
+  }
+  let mocks: ReturnType<typeof setupSupabaseMock>
+
+  // Helper function to setup Supabase mock chain
+  const setupSupabaseMock = () => {
+    const mockSingle = jest.fn()
+    const mockEq = jest.fn().mockReturnValue({ single: mockSingle })
+    const mockSelect = jest.fn().mockReturnValue({ eq: mockEq })
+    const mockUpdateEq = jest.fn().mockResolvedValue({ error: null })
+    const mockUpdate = jest.fn().mockReturnValue({ eq: mockUpdateEq })
+    const mockInsert = jest.fn().mockReturnValue({ select: mockSelect })
+    const mockFrom = jest.fn().mockImplementation(() => ({
+      select: mockSelect,
+      update: mockUpdate,
+      insert: mockInsert,
+    }))
+
+    const mockSupabase = {
+      auth: {
+        getUser: jest.fn(),
+      },
+      from: mockFrom,
+    }
+
+    return {
+      mockSupabase,
+      mockSingle,
+      mockEq,
+      mockSelect,
+      mockUpdate,
+      mockUpdateEq,
+      mockInsert,
+      mockFrom,
+    }
   }
 
-  // Create reusable mock functions
-  const mockSelect = jest.fn().mockReturnThis()
-  const mockEq = jest.fn().mockReturnThis()
-  const mockSingle = jest.fn()
+  // Helper function to mock profile and brand data
+  const mockSupabaseData = (profileData: any, brandData?: any) => {
+    mocks.mockSingle
+      .mockResolvedValueOnce({ data: profileData, error: null })
+    
+    if (brandData !== undefined) {
+      mocks.mockSingle.mockResolvedValueOnce({ data: brandData, error: null })
+    }
+  }
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mocks = setupSupabaseMock()
+    mockSupabase = mocks.mockSupabase
     ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabase)
     ;(NextResponse.next as jest.Mock).mockReturnValue({ type: "next" })
     ;(NextResponse.redirect as jest.Mock).mockImplementation((url) => ({
       type: "redirect",
       url,
-    }))
-
-    // Reset mock functions
-    mockSelect.mockClear()
-    mockEq.mockClear()
-    mockSingle.mockClear()
-
-    // Setup the default mock chain with all necessary methods
-    mockSupabase.from.mockImplementation(() => ({
-      select: () => ({
-        eq: () => ({
-          single: mockSingle
-        })
-      }),
-      update: () => ({
-        eq: () => Promise.resolve({ error: null })
-      }),
-      insert: () => Promise.resolve({ error: null })
     }))
   })
 
@@ -111,7 +132,7 @@ describe("Middleware", () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: "user-1" } },
       })
-      mockSupabase.from().single.mockResolvedValue({ data: null })
+      mockSupabaseData(null)
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -132,9 +153,12 @@ describe("Middleware", () => {
     it("redirects to TikTok auth when TikTok is not connected", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ data: mockCreatorProfile }) // Profile query
-        .mockResolvedValueOnce({ data: { tiktok_connected: false } }) // Creator query
+      
+      // Use our helper to mock both profile and creator data
+      mockSupabaseData(
+        mockCreatorProfile,
+        { tiktok_connected: false }
+      )
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -147,25 +171,17 @@ describe("Middleware", () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
       
-      // Mock the insert function
-      const mockInsert = jest.fn().mockResolvedValue({ error: null })
-      mockSupabase.from.mockImplementation(() => ({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle,
-        insert: mockInsert,
-      }))
+      // Mock profile data but no creator record
+      mockSupabaseData(mockCreatorProfile, null)
 
-      // Return profile but no creator record
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ data: mockCreatorProfile }) // Profile query
-        .mockResolvedValueOnce({ data: null }) // Creator query (not found)
+      // Setup insert mock
+      mocks.mockInsert.mockResolvedValueOnce({ error: null })
 
       const response = await middleware(mockRequest as NextRequest)
 
       // Verify creator record creation
-      expect(mockSupabase.from).toHaveBeenCalledWith("creators")
-      expect(mockInsert).toHaveBeenCalledWith({
+      expect(mocks.mockFrom).toHaveBeenCalledWith("creators")
+      expect(mocks.mockInsert).toHaveBeenCalledWith({
         user_id: mockUser.id,
         tiktok_connected: false,
       })
@@ -179,9 +195,11 @@ describe("Middleware", () => {
     it("allows access when already on profile setup page", async () => {
       mockRequest = setupRequest("/onboarding/creator/profile")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ data: mockCreatorProfile }) // Profile query
-        .mockResolvedValueOnce({ data: { tiktok_connected: true } }) // Creator query
+      
+      mockSupabaseData(
+        mockCreatorProfile,
+        { tiktok_connected: true }
+      )
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -191,9 +209,11 @@ describe("Middleware", () => {
     it("redirects to profile setup when TikTok connected but no organization name", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ data: mockCreatorProfile }) // Profile query
-        .mockResolvedValueOnce({ data: { tiktok_connected: true } }) // Creator query
+      
+      mockSupabaseData(
+        mockCreatorProfile,
+        { tiktok_connected: true }
+      )
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -206,33 +226,25 @@ describe("Middleware", () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
       
-      // Mock the update function with proper chain
-      const mockUpdate = jest.fn().mockReturnValue({ eq: mockEq })
-      mockEq.mockResolvedValue({ error: null }) // Mock the final promise resolution
+      // Mock profile with organization name and creator with TikTok connected
+      mockSupabaseData(
+        { 
+          ...mockCreatorProfile, 
+          organization_name: "Test Creator" 
+        },
+        { tiktok_connected: true }
+      )
 
-      mockSupabase.from.mockImplementation(() => ({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle,
-        update: mockUpdate,
-      }))
-
-      // Return completed profile and creator
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ 
-          data: { 
-            ...mockCreatorProfile, 
-            organization_name: "Test Creator" 
-          }
-        }) // Profile query
-        .mockResolvedValueOnce({ data: { tiktok_connected: true } }) // Creator query
+      // Mock the update operation with proper chaining
+      const mockUpdateEq = jest.fn().mockResolvedValue({ error: null })
+      mocks.mockUpdate = jest.fn().mockReturnValue({ eq: mockUpdateEq })
 
       const response = await middleware(mockRequest as NextRequest)
 
       // Verify onboarding completion update
-      expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
-      expect(mockUpdate).toHaveBeenCalledWith({ onboarding_completed: true })
-      expect(mockEq).toHaveBeenCalledWith("user_id", mockUser.id)
+      expect(mocks.mockFrom).toHaveBeenCalledWith("profiles")
+      expect(mocks.mockUpdate).toHaveBeenCalledWith({ onboarding_completed: true })
+      expect(mockUpdateEq).toHaveBeenCalledWith("user_id", mockUser.id)
 
       expect(response.type).toBe("next")
     })
@@ -256,15 +268,15 @@ describe("Middleware", () => {
       for (const route of paymentRequiredRoutes) {
         mockRequest = setupRequest(route)
         mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-        mockSupabase.from().single
-          .mockResolvedValueOnce({ 
-            data: { 
-              ...mockBrandProfile, 
-              organization_name: "Test Brand",
-              onboarding_completed: true 
-            } 
-          }) // Profile query
-          .mockResolvedValueOnce({ data: { payment_verified: false } }) // Brand query
+        
+        mockSupabaseData(
+          { 
+            ...mockBrandProfile, 
+            organization_name: "Test Brand",
+            onboarding_completed: true 
+          },
+          { payment_verified: false }
+        )
 
         const response = await middleware(mockRequest as NextRequest)
 
@@ -284,7 +296,7 @@ describe("Middleware", () => {
       for (const route of paymentRequiredRoutes) {
         mockRequest = setupRequest(route)
         mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-        mockSupabase.from().single
+        mocks.mockSingle
           .mockResolvedValueOnce({ 
             data: { 
               ...mockBrandProfile, 
@@ -303,7 +315,7 @@ describe("Middleware", () => {
     it("allows access to non-payment routes without payment verification", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
+      mocks.mockSingle
         .mockResolvedValueOnce({ 
           data: { 
             ...mockBrandProfile, 
@@ -321,7 +333,7 @@ describe("Middleware", () => {
     it("redirects to profile setup when organization name is missing", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
+      mocks.mockSingle
         .mockResolvedValueOnce({ data: mockBrandProfile }) // Profile query
         .mockResolvedValueOnce({ data: { payment_verified: false } }) // Brand query
 
@@ -340,10 +352,10 @@ describe("Middleware", () => {
         mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
         
         // Setup complete mock chain for all Supabase operations
-        mockSupabase.from.mockImplementation(() => ({
+        mocks.mockFrom.mockImplementation(() => ({
           select: () => ({
             eq: () => ({
-              single: mockSingle
+              single: mocks.mockSingle
             })
           }),
           update: () => ({
@@ -352,7 +364,7 @@ describe("Middleware", () => {
           insert: () => Promise.resolve({ error: null })
         }))
 
-        mockSingle
+        mocks.mockSingle
           .mockResolvedValueOnce({ 
             data: { 
               user_type: "brand", 
@@ -397,10 +409,10 @@ describe("Middleware", () => {
       console.log("Mock Brand:", mockBrand)
 
       // Setup mock chain
-      mockSupabase.from.mockImplementation(() => ({
+      mocks.mockFrom.mockImplementation(() => ({
         select: () => ({
           eq: () => ({
-            single: mockSingle.mockResolvedValueOnce({ data: mockProfile })
+            single: mocks.mockSingle.mockResolvedValueOnce({ data: mockProfile })
               .mockResolvedValueOnce({ data: mockBrand })
           })
         })
@@ -440,7 +452,7 @@ describe("Middleware", () => {
         mockRequest = setupRequest(route)
         
         // Reset single mock for each iteration
-        mockSupabase.from().single
+        mocks.mockSingle
           .mockResolvedValueOnce({ data: mockCompletedProfile }) // Profile query
           .mockResolvedValueOnce({ data: mockBrandData }) // Brand query
 
@@ -453,22 +465,16 @@ describe("Middleware", () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
       
-      // Mock the profile query to return an incomplete brand profile
+      // Mock profile with incomplete onboarding
       const mockIncompleteProfile = {
         user_type: "brand",
         organization_name: null,
         onboarding_completed: false,
       }
 
-      // Mock the brand query to return no stripe setup
-      const mockBrandData = {
-        stripe_customer_id: null,
-        payment_verified: false,
-      }
-
-      mockSupabase.from().single
-        .mockResolvedValueOnce({ data: mockIncompleteProfile }) // Profile query
-        .mockResolvedValueOnce({ data: mockBrandData }) // Brand query
+      mocks.mockSingle
+        .mockResolvedValueOnce({ data: mockIncompleteProfile, error: null })
+        .mockResolvedValueOnce({ data: null, error: null })
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -478,7 +484,7 @@ describe("Middleware", () => {
     })
   })
 
-  describe("Brand Signup Flow", () => {
+  describe("Brand Onboarding Flow", () => {
     const mockUser = { id: "user-1", email: "test@example.com" }
     const mockBrandProfile = {
       user_type: "brand",
@@ -489,7 +495,7 @@ describe("Middleware", () => {
     it("redirects to onboarding after successful email signup", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single
+      mocks.mockSingle
         .mockResolvedValueOnce({ data: mockBrandProfile }) // Profile query
         .mockResolvedValueOnce({ data: null }) // Brand query
 
@@ -503,7 +509,18 @@ describe("Middleware", () => {
     it("redirects to signin if profile creation fails", async () => {
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      mockSupabase.from().single.mockResolvedValue({ data: null })
+      
+      // Mock a failed profile query with an error
+      mocks.mockFrom.mockImplementation(() => ({
+        select: () => ({
+          eq: () => ({
+            single: jest.fn().mockResolvedValueOnce({ 
+              data: null, 
+              error: { code: "PGRST116", message: "No profile found" }
+            })
+          })
+        })
+      }))
 
       const response = await middleware(mockRequest as NextRequest)
 
@@ -517,67 +534,97 @@ describe("Middleware", () => {
     const mockUser = { id: "user-1", email: "test@example.com" }
 
     it("follows the complete onboarding path with payment setup", async () => {
-      // Step 1: Initial state - No profile
-      mockRequest = setupRequest("/dashboard")
+      // Mock auth user for all requests
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
-      
-      // Mock initial profile with no organization name
-      mockSingle
-        .mockResolvedValueOnce({ 
+
+      // Step 1: Initial state - No profile data
+      mocks.mockSingle
+        .mockResolvedValueOnce({
           data: {
+            user_id: mockUser.id,
             user_type: "brand",
             organization_name: null,
             onboarding_completed: false
-          }
-        })
-        .mockResolvedValueOnce({ data: null }) // No brand data yet
+          },
+          error: null
+        }) // Profile check
+        .mockResolvedValueOnce({
+          data: null,
+          error: null
+        }) // Brand check (no record yet)
 
+      let mockRequest = setupRequest("/dashboard")
       let response = await middleware(mockRequest as NextRequest)
       expect(response.type).toBe("redirect")
       let redirectUrl = new URL(response.url)
       expect(redirectUrl.pathname).toBe("/onboarding/brand/profile")
 
-      // Step 2: After profile setup, but before payment setup
-      mockRequest = setupRequest("/dashboard")
-      mockSingle
-        .mockResolvedValueOnce({ 
+      // Step 2: After profile setup but before payment setup
+      mocks.mockSingle
+        .mockResolvedValueOnce({
           data: {
+            user_id: mockUser.id,
             user_type: "brand",
             organization_name: "Test Brand",
-            onboarding_completed: false,
-          }
-        })
-        .mockResolvedValueOnce({ 
+            onboarding_completed: false
+          },
+          error: null
+        }) // Profile check
+        .mockResolvedValueOnce({
           data: {
+            user_id: mockUser.id,
             stripe_customer_id: null,
-            payment_verified: false,
-          }
-        })
+            payment_verified: false
+          },
+          error: null
+        }) // Brand check
 
+      mockRequest = setupRequest("/dashboard")
       response = await middleware(mockRequest as NextRequest)
       expect(response.type).toBe("redirect")
       redirectUrl = new URL(response.url)
       expect(redirectUrl.pathname).toBe("/onboarding/brand/payments")
 
-      // Step 3: After payment setup - should redirect to dashboard
-      mockRequest = setupRequest("/dashboard")
-      mockSingle
-        .mockResolvedValueOnce({ 
+      // Step 3: After payment setup but before onboarding completion
+      mocks.mockSingle
+        .mockResolvedValueOnce({
           data: {
+            user_id: mockUser.id,
             user_type: "brand",
             organization_name: "Test Brand",
-            onboarding_completed: true,
-          }
-        })
-        .mockResolvedValueOnce({ 
+            onboarding_completed: false
+          },
+          error: null
+        }) // Profile check
+        .mockResolvedValueOnce({
           data: {
+            user_id: mockUser.id,
             stripe_customer_id: "cus_123",
-            payment_verified: true,
-          }
-        })
+            payment_verified: true
+          },
+          error: null
+        }) // Brand check
 
+      // Mock the update function for completing onboarding
+      const mockUpdate = jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ error: null })
+      })
+      mocks.mockFrom.mockImplementation(() => ({
+        select: () => ({
+          eq: () => ({
+            single: mocks.mockSingle
+          })
+        }),
+        update: mockUpdate
+      }))
+
+      mockRequest = setupRequest("/dashboard")
       response = await middleware(mockRequest as NextRequest)
       expect(response.type).toBe("next")
+
+      // Verify onboarding was marked as complete
+      expect(mocks.mockFrom).toHaveBeenCalledWith("profiles")
+      expect(mockUpdate).toHaveBeenCalledWith({ onboarding_completed: true })
     })
   })
 
@@ -589,7 +636,7 @@ describe("Middleware", () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
       
       // Mock profile with organization name and completed onboarding
-      mockSingle
+      mocks.mockSingle
         .mockResolvedValueOnce({ 
           data: { 
             user_id: mockUser.id,
@@ -619,10 +666,10 @@ describe("Middleware", () => {
         mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
         
         // Setup complete mock chain for all Supabase operations
-        mockSupabase.from.mockImplementation(() => ({
+        mocks.mockFrom.mockImplementation(() => ({
           select: () => ({
             eq: () => ({
-              single: mockSingle
+              single: mocks.mockSingle
             })
           }),
           update: () => ({
@@ -631,7 +678,7 @@ describe("Middleware", () => {
           insert: () => Promise.resolve({ error: null })
         }))
 
-        mockSingle
+        mocks.mockSingle
           .mockResolvedValueOnce({ 
             data: { 
               user_type: "brand", 

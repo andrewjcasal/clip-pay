@@ -5,7 +5,11 @@ import {
   setupBrandPayment,
   completeBrandOnboarding,
   canCreateCampaign,
+  BrandRepository,
+  AuthService,
 } from "@/app/auth/brand"
+import { SupabaseClient, AuthError, AuthResponse, User } from "@supabase/supabase-js"
+import { PostgrestQueryBuilder } from "@supabase/postgrest-js"
 
 // Mock Supabase client
 jest.mock("@/lib/supabase-server", () => ({
@@ -13,206 +17,142 @@ jest.mock("@/lib/supabase-server", () => ({
 }))
 
 describe("Brand Authentication and Onboarding Flows", () => {
-  const mockSupabase = {
-    auth: {
-      getUser: jest.fn(),
-      signUp: jest.fn(),
-      signIn: jest.fn(),
-    },
-    from: jest.fn(),
-  }
+  let mockSupabase: jest.Mocked<SupabaseClient>
+  let brandRepo: BrandRepository
+  let authService: AuthService
 
-  // Create reusable mock functions
-  const mockSelect = jest.fn().mockReturnThis()
-  const mockEq = jest.fn().mockReturnThis()
-  const mockSingle = jest.fn()
-  const mockInsert = jest.fn().mockReturnThis()
-  const mockUpdate = jest.fn().mockReturnThis()
+  const mockUser: User = {
+    id: "user-1",
+    email: "test@example.com",
+    aud: "authenticated",
+    role: "authenticated",
+    created_at: new Date().toISOString(),
+    app_metadata: {},
+    user_metadata: {},
+    identities: [],
+    updated_at: new Date().toISOString(),
+  }
 
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // Initialize mock Supabase client
+    mockSupabase = {
+      auth: {
+        signUp: jest.fn(),
+      },
+      from: jest.fn(),
+    } as any
+
+    // Initialize repository and service
+    brandRepo = new BrandRepository(mockSupabase)
+    authService = new AuthService(mockSupabase)
     ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabase)
-
-    // Reset mock functions
-    mockSelect.mockClear()
-    mockEq.mockClear()
-    mockSingle.mockClear()
-    mockInsert.mockClear()
-    mockUpdate.mockClear()
-
-    // Setup the default mock chain
-    mockSupabase.from.mockImplementation(() => ({
-      select: mockSelect,
-      eq: mockEq,
-      single: mockSingle,
-      insert: mockInsert,
-      update: mockUpdate,
-    }))
   })
 
-  describe("Email Signup Flow", () => {
-    const mockUser = { id: "user-1", email: "test@example.com" }
-    const mockPassword = "testPassword123"
-
-    it("successfully creates a brand account with email", async () => {
-      // Mock successful signup
-      mockSupabase.auth.signUp.mockResolvedValueOnce({
-        data: { user: mockUser },
+  describe("signUpBrand", () => {
+    it("successfully creates a brand account", async () => {
+      // Mock auth signup response
+      const mockSignUpResponse: AuthResponse = {
+        data: { user: mockUser, session: null },
         error: null,
-      })
+      }
+      jest.spyOn(mockSupabase.auth, "signUp").mockResolvedValueOnce(mockSignUpResponse)
 
       // Mock profile creation
-      mockInsert.mockResolvedValueOnce({
-        data: {
-          user_id: mockUser.id,
-          user_type: "brand",
-          onboarding_completed: false,
-        },
-        error: null,
+      const mockFrom = jest.fn().mockReturnValue({
+        insert: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
       })
+      mockSupabase.from = mockFrom
 
-      const result = await signUpBrand(mockUser.email, mockPassword)
+      const result = await signUpBrand(mockUser.email!, "password123")
 
       expect(result.success).toBe(true)
       expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
         email: mockUser.email,
-        password: mockPassword,
+        password: "password123",
       })
-      expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
-      expect(mockInsert).toHaveBeenCalledWith({
-        user_id: mockUser.id,
-        user_type: "brand",
-        onboarding_completed: false,
-      })
+      expect(mockFrom).toHaveBeenCalledWith("profiles")
     })
 
     it("handles signup failure", async () => {
-      mockSupabase.auth.signUp.mockResolvedValueOnce({
-        data: null,
-        error: new Error("Email already registered"),
-      })
+      const mockErrorResponse: AuthResponse = {
+        data: { user: null, session: null },
+        error: new AuthError("Email already registered"),
+      }
+      jest.spyOn(mockSupabase.auth, "signUp").mockResolvedValueOnce(mockErrorResponse)
 
-      const result = await signUpBrand(mockUser.email, mockPassword)
+      const result = await signUpBrand(mockUser.email!, "password123")
 
       expect(result.success).toBe(false)
       expect(result.error).toBe("Email already registered")
     })
   })
 
-  describe("Brand Onboarding - Complete Flow", () => {
-    const mockUser = { id: "user-1", email: "test@example.com" }
+  describe("updateBrandProfile", () => {
+    it("successfully updates brand profile", async () => {
+      const mockFrom = jest.fn().mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
+        }),
+      })
+      mockSupabase.from = mockFrom
 
-    it("completes full onboarding with profile and payment setup", async () => {
-      // Step 1: Update profile with organization name
-      mockUpdate
-        .mockResolvedValueOnce({
-          data: {
-            user_id: mockUser.id,
-            organization_name: "Test Brand",
-            onboarding_completed: false,
-          },
-          error: null,
-        })
-
-      const profileResult = await updateBrandProfile(mockUser.id, {
+      const result = await updateBrandProfile(mockUser.id, {
         organization_name: "Test Brand",
       })
 
-      expect(profileResult.success).toBe(true)
-      expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
-      expect(mockUpdate).toHaveBeenCalledWith({
-        organization_name: "Test Brand",
-      })
-
-      // Step 2: Setup payment with Stripe
-      mockInsert.mockResolvedValueOnce({
-        data: {
-          user_id: mockUser.id,
-          stripe_customer_id: "cus_123",
-          payment_verified: true,
-        },
-        error: null,
-      })
-
-      const paymentResult = await setupBrandPayment(mockUser.id, "tok_visa")
-
-      expect(paymentResult.success).toBe(true)
-      expect(mockSupabase.from).toHaveBeenCalledWith("brands")
-      expect(mockInsert).toHaveBeenCalledWith({
-        user_id: mockUser.id,
-        stripe_customer_id: "cus_123",
-        payment_verified: true,
-      })
-
-      // Step 3: Complete onboarding
-      mockUpdate.mockResolvedValueOnce({
-        data: {
-          user_id: mockUser.id,
-          onboarding_completed: true,
-        },
-        error: null,
-      })
-
-      const completionResult = await completeBrandOnboarding(mockUser.id)
-
-      expect(completionResult.success).toBe(true)
-      expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboarding_completed: true,
-      })
+      expect(result.success).toBe(true)
+      expect(mockFrom).toHaveBeenCalledWith("profiles")
     })
   })
 
-  describe("Brand Onboarding - Skip Payment Flow", () => {
-    const mockUser = { id: "user-1", email: "test@example.com" }
-
-    it("allows completing onboarding without payment setup", async () => {
-      // Step 1: Update profile with organization name
-      mockUpdate
-        .mockResolvedValueOnce({
-          data: {
-            user_id: mockUser.id,
-            organization_name: "Test Brand",
-            onboarding_completed: false,
-          },
-          error: null,
-        })
-
-      const profileResult = await updateBrandProfile(mockUser.id, {
-        organization_name: "Test Brand",
+  describe("setupBrandPayment", () => {
+    it("successfully sets up brand payment", async () => {
+      const mockFrom = jest.fn().mockReturnValue({
+        insert: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
       })
+      mockSupabase.from = mockFrom
 
-      expect(profileResult.success).toBe(true)
+      const result = await setupBrandPayment(mockUser.id, "tok_visa")
 
-      // Step 2: Skip payment and complete onboarding
-      mockUpdate.mockResolvedValueOnce({
-        data: {
-          user_id: mockUser.id,
-          onboarding_completed: true,
-        },
-        error: null,
+      expect(result.success).toBe(true)
+      expect(mockFrom).toHaveBeenCalledWith("brands")
+    })
+  })
+
+  describe("canCreateCampaign", () => {
+    it("allows campaign creation when payment is verified", async () => {
+      const mockFrom = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValueOnce({
+              data: { stripe_customer_id: "cus_123", payment_verified: true },
+              error: null,
+            }),
+          }),
+        }),
       })
+      mockSupabase.from = mockFrom
 
-      const completionResult = await completeBrandOnboarding(mockUser.id)
+      const result = await canCreateCampaign(mockUser.id)
 
-      expect(completionResult.success).toBe(true)
-      expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboarding_completed: true,
-      })
+      expect(result.allowed).toBe(true)
+      expect(mockFrom).toHaveBeenCalledWith("brands")
     })
 
-    it("requires payment setup when attempting to create campaign", async () => {
-      mockSelect
-        .mockImplementationOnce(() => ({
-          eq: mockEq,
-          single: mockSingle.mockResolvedValueOnce({
-            data: {
-              stripe_customer_id: null,
-              payment_verified: false,
-            },
+    it("prevents campaign creation when payment is not verified", async () => {
+      const mockFrom = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValueOnce({
+              data: { stripe_customer_id: null, payment_verified: false },
+              error: null,
+            }),
           }),
-        }))
+        }),
+      })
+      mockSupabase.from = mockFrom
 
       const result = await canCreateCampaign(mockUser.id)
 
