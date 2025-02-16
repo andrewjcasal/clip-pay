@@ -18,8 +18,6 @@ export default async function BrandOnboardingStep1() {
     .eq("user_id", user.id)
     .single()
 
-  console.log("profile", profile?.organization_name)
-
   // If user already has an organization name, redirect to step 2
   if (profile?.organization_name) {
     redirect("/onboarding/brand/payments")

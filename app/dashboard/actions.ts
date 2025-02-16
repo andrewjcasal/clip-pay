@@ -9,6 +9,7 @@ import { unlink } from "fs/promises"
 import { Deepgram } from "@deepgram/sdk"
 import { Database } from "@/types/supabase"
 import { updateSubmissionVideoUrl as updateVideo } from "@/app/actions/creator"
+import { evaluateSubmission } from "@/lib/openai"
 
 const execAsync = promisify(exec)
 
@@ -454,11 +455,56 @@ export async function submitVideo({
         transcription,
         status: "pending",
       })
-      .select()
+      .select(
+        "*, campaign:campaigns (title, guidelines, video_outline, brand:brands (auto_approval_enabled))"
+      )
       .single()
 
     if (submissionError) {
       throw submissionError
+    }
+
+    if (submission.campaign.brand.auto_approval_enabled) {
+      try {
+        const evaluation = await evaluateSubmission(
+          submission.campaign.title,
+          submission.campaign.guidelines || "",
+          submission.campaign.video_outline,
+          transcription || ""
+        )
+
+        // Only auto-approve/reject if confidence is high enough
+        if (evaluation.confidence >= 0.8) {
+          const newStatus = evaluation.approved ? "approved" : "rejected"
+          await supabase
+            .from("submissions")
+            .update({
+              status: newStatus,
+              transcription,
+              processed_at: new Date().toISOString(),
+              auto_moderation_result: evaluation,
+            })
+            .eq("id", submission.id)
+
+          // Create notification for the creator
+          await supabase.from("notifications").insert({
+            recipient_id: submission.user_id,
+            type: `submission_${newStatus}`,
+            title: `Submission ${newStatus === "approved" ? "Approved" : "Rejected"}`,
+            message: `Your submission for "${submission.campaign.title}" has been automatically ${newStatus}. Reason: ${evaluation.reason}`,
+            metadata: {
+              submission_id: submission.id,
+              campaign_title: submission.campaign.title,
+              auto_moderated: true,
+            },
+          })
+
+          return
+        }
+      } catch (error) {
+        console.error("Error in auto-moderation:", error)
+        // Continue with normal processing if auto-moderation fails
+      }
     }
 
     revalidatePath("/dashboard")

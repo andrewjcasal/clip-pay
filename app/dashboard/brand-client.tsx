@@ -49,6 +49,11 @@ type Submission = {
   user_id: string
   creator: SubmissionCreator
   payout_status?: string
+  auto_moderation_result?: {
+    approved: boolean
+    reason: string
+    confidence: number
+  }
 }
 
 interface CampaignWithSubmissions {
@@ -154,6 +159,7 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const [campaigns, setCampaigns] =
     useState<CampaignWithSubmissions[]>(initialCampaigns)
+
   const [showNewCampaign, setShowNewCampaign] = useState(false)
   const [selectedCampaign, setSelectedCampaign] =
     useState<CampaignWithSubmissions | null>(null)
@@ -358,6 +364,7 @@ export function DashboardClient({
                   ...submission,
                   status: "approved",
                   payout_status: "pending",
+                  auto_moderation_result: submission.auto_moderation_result,
                 }
               : submission
           )
@@ -382,6 +389,7 @@ export function DashboardClient({
                   ...submission,
                   status: "approved",
                   payout_status: "pending",
+                  auto_moderation_result: submission.auto_moderation_result,
                 }
               : submission
           ),
@@ -405,7 +413,11 @@ export function DashboardClient({
           ...campaign,
           submissions: campaign.submissions.map((submission) =>
             submission.id === submissionId
-              ? { ...submission, status: "rejected" }
+              ? {
+                  ...submission,
+                  status: "rejected",
+                  auto_moderation_result: submission.auto_moderation_result,
+                }
               : submission
           ),
         }))
@@ -418,7 +430,11 @@ export function DashboardClient({
           ...prev,
           submissions: prev.submissions.map((submission) =>
             submission.id === submissionId
-              ? { ...submission, status: "rejected" }
+              ? {
+                  ...submission,
+                  status: "rejected",
+                  auto_moderation_result: submission.auto_moderation_result,
+                }
               : submission
           ),
         }
@@ -998,23 +1014,24 @@ export function DashboardClient({
                           />
                         )}
 
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-zinc-900">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium text-zinc-900">
                               {selectedSubmission.creator.full_name ||
                                 "Anonymous"}
-                            </p>
-                            <p className="text-sm text-zinc-500">
+                            </span>
+                            <span className="text-zinc-500">
                               {selectedSubmission.creator.email}
-                            </p>
-                            <p className="text-sm text-zinc-500">
-                              Submitted{" "}
+                            </span>
+                            <span className="text-zinc-400">
+                              submitted{" "}
                               {formatDistanceToNow(
                                 new Date(selectedSubmission.created_at)
                               )}{" "}
                               ago
-                            </p>
+                            </span>
                           </div>
+
                           {selectedSubmission.status === "pending" ? (
                             <div className="flex gap-3">
                               <Button
@@ -1038,15 +1055,26 @@ export function DashboardClient({
                           ) : (
                             <div
                               className={cn(
-                                "text-sm font-medium rounded-full px-3 py-1",
+                                "text-sm px-4 py-3 rounded-lg",
                                 selectedSubmission.status === "approved"
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-red-50 text-red-700"
+                                  ? "bg-green-50 text-green-700 border border-green-200"
+                                  : "bg-red-50 text-red-700 border border-red-200"
                               )}
                             >
-                              {selectedSubmission.status === "approved"
-                                ? "You have approved this submission"
-                                : "You have rejected this submission"}
+                              <div className="font-semibold mb-1">
+                                {selectedSubmission.status === "approved"
+                                  ? "Submission Approved"
+                                  : "Submission Rejected"}
+                              </div>
+                              {selectedSubmission.auto_moderation_result
+                                ?.reason && (
+                                <div className="text-sm font-normal">
+                                  {
+                                    selectedSubmission.auto_moderation_result
+                                      .reason
+                                  }
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

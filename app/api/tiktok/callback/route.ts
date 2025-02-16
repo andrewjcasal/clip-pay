@@ -38,8 +38,6 @@ export async function GET(request: Request) {
       .eq("user_id", user.id)
       .single()
 
-    console.log("creator ABC", creator)
-
     if (
       !creator ||
       creator.tiktok_oauth_state !== state ||

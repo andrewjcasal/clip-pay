@@ -66,42 +66,28 @@ export function SubmissionsClient({
   })
 
   const handleUpdateVideoUrl = async (submissionId: string) => {
-    console.log("=== Starting handleUpdateVideoUrl in submissions client ===")
-    console.log("Submission ID:", submissionId)
-    console.log("Video URL state:", videoUrls)
-    console.log("Current video URL for submission:", videoUrls[submissionId])
-
     if (!videoUrls[submissionId]) {
-      console.log("No video URL found for submission, returning early")
       return
     }
 
     try {
-      console.log("Setting updating submission ID:", submissionId)
       setUpdatingSubmissionId(submissionId)
 
-      console.log("Calling updateSubmissionVideoUrl with:", {
-        submissionId,
-        videoUrl: videoUrls[submissionId],
-      })
       const result = await updateSubmissionVideoUrl(
         submissionId,
         videoUrls[submissionId]
       )
-      console.log("Update result:", result)
 
       if (!result.success) {
-        console.log("Update failed with error:", result.error)
         throw new Error(result.error || "Failed to update video URL")
       }
 
-      console.log("Update successful, clearing video URL from state")
       setVideoUrls((prev) => {
         const newState = {
           ...prev,
           [submissionId]: "",
         }
-        console.log("New video URLs state:", newState)
+
         return newState
       })
 
@@ -112,9 +98,7 @@ export function SubmissionsClient({
         error instanceof Error ? error.message : "Failed to update video URL"
       )
     } finally {
-      console.log("Clearing updating submission ID")
       setUpdatingSubmissionId(null)
-      console.log("=== Completed handleUpdateVideoUrl ===")
     }
   }
 

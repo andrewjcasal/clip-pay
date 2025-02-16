@@ -44,13 +44,6 @@ export async function GET(request: Request) {
     )
   }
 
-  // Debug log configuration
-  console.log("TikTok Configuration:", {
-    clientKey,
-    redirectUri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/tiktok/callback/`,
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL,
-  })
-
   const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/tiktok/callback/`
   const scope = "user.info.basic,video.list"
 
@@ -65,8 +58,6 @@ export async function GET(request: Request) {
       .select("*")
       .eq("user_id", user.id)
       .single()
-
-    console.log("creator exists", creator)
 
     const { error: updateError } = await supabase
       .from("creators")
@@ -90,10 +81,6 @@ export async function GET(request: Request) {
       `&state=${state}` +
       `&code_challenge=${codeChallenge}` +
       "&code_challenge_method=S256"
-
-    console.log("Full TikTok Auth URL:", authUrl)
-    console.log("Redirect URI:", redirectUri)
-    console.log("Code Challenge:", codeChallenge)
 
     return NextResponse.json({ url: authUrl })
   } catch (error) {

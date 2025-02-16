@@ -388,7 +388,7 @@ describe("Middleware", () => {
     })
 
     it("allows dashboard and other non-payment routes without payment setup", async () => {
-      console.log("=== Test Start ===")
+      
       mockRequest = setupRequest("/dashboard")
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockUser } })
       
@@ -399,14 +399,14 @@ describe("Middleware", () => {
         organization_name: "Test Brand",
         onboarding_completed: true 
       }
-      console.log("Mock Profile:", mockProfile)
+      
 
       const mockBrand = { 
         user_id: mockUser.id,
         stripe_customer_id: null, 
         payment_verified: false
       }
-      console.log("Mock Brand:", mockBrand)
+      
 
       // Setup mock chain
       mocks.mockFrom.mockImplementation(() => ({
@@ -419,10 +419,10 @@ describe("Middleware", () => {
       }))
 
       const response = await middleware(mockRequest as NextRequest)
-      console.log("Response:", response)
+      
 
       expect(response.type).toBe("next")
-      console.log("=== Test End ===")
+      
     })
   })
 

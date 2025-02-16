@@ -104,7 +104,6 @@ export async function POST(request: Request) {
       .eq("id", submissionId)
       .single()
 
-    console.log("submission", submission)
     if (submissionError || !submission) {
       console.error("Submission error:", submissionError)
       return NextResponse.json(

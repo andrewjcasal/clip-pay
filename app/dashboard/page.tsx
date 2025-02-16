@@ -26,6 +26,11 @@ export interface Submission {
     full_name: string | null
     email: string | null
   }
+  auto_moderation_result?: {
+    approved: boolean
+    reason: string
+    confidence: number
+  }
 }
 
 export interface Campaign {

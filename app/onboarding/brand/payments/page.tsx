@@ -35,11 +35,8 @@ export default async function PaymentsPage() {
     .eq("user_id", user.id)
     .single()
 
-  console.log("Initial brand check:", brand)
-
   // If brand record doesn't exist, create it
   if (!brand) {
-    console.log("Creating brand record...")
     const { data: newBrand, error: insertError } = await supabase
       .from("brands")
       .insert({ user_id: user.id })
@@ -52,7 +49,6 @@ export default async function PaymentsPage() {
     }
 
     brand = newBrand
-    console.log("Created brand record:", brand)
   }
 
   // If user already has a Stripe customer ID and has completed onboarding, redirect to dashboard

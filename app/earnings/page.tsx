@@ -40,7 +40,6 @@ export default async function EarningsPage() {
     .eq("user_id", user.id)
     .single<ProfileResponse>()
 
-  console.log("profile", profile)
   if (!profile || profile.user_type !== "creator") {
     redirect("/dashboard")
   }
@@ -70,7 +69,6 @@ export default async function EarningsPage() {
   if (submissionsError) {
     console.error("Error fetching submissions:", submissionsError)
   }
-  console.log("Submissions found:", submissions)
 
   // Get total earned from all approved and fulfilled submissions
   const { data: totalEarnedData } = await supabase
@@ -78,8 +76,6 @@ export default async function EarningsPage() {
     .select("earned")
     .eq("creator_id", user.id)
     .in("status", ["approved", "fulfilled"])
-
-  console.log("Total earned data:", totalEarnedData)
 
   const totalEarned =
     totalEarnedData?.reduce((sum, sub) => sum + (sub.earned || 0), 0) || 0

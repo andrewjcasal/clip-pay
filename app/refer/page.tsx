@@ -41,8 +41,6 @@ export default async function ReferPage() {
     .eq("profile_id", user.id)
     .single()
 
-  console.log("referralData", referralData)
-
   // If no referral code exists, create one
   if (!referralData) {
     const code = `CREATOR${Math.random().toString(36).substring(2, 8).toUpperCase()}`
@@ -65,7 +63,6 @@ export default async function ReferPage() {
     referralData = newCode
   }
 
-  console.log("user.id", user.id)
   // Get referred creators
   const { data: referredCreators } = await supabase
     .from("profiles")
@@ -81,8 +78,6 @@ export default async function ReferPage() {
     )
     .eq("referred_by", user.id)
     .order("created_at", { ascending: false })
-
-  console.log("referredCreators", referredCreators)
 
   return (
     <div className="min-h-screen bg-white">

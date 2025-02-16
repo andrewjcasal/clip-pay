@@ -14,10 +14,7 @@ function getProjectRef() {
 }
 
 export async function GET(request: Request) {
-  console.log("=== Auth Callback Start ===")
   const requestUrl = new URL(request.url)
-  console.log("Request URL:", requestUrl.toString())
-  console.log("Search params:", Object.fromEntries(requestUrl.searchParams))
 
   const code = requestUrl.searchParams.get("code")
   const next = requestUrl.searchParams.get("next") || "/dashboard"
@@ -29,14 +26,12 @@ export async function GET(request: Request) {
     try {
       const stateData = JSON.parse(state)
       userType = stateData.user_type
-      console.log("Parsed user type from state:", userType)
     } catch (e) {
       console.error("Failed to parse state:", e)
     }
   }
 
   if (!code) {
-    console.log("No code provided")
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_BASE_URL}/signin?error=No code provided`
     )
@@ -45,7 +40,6 @@ export async function GET(request: Request) {
   const supabase = await createServerActionClient()
 
   try {
-    console.log("Exchanging code for session...")
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error("Session exchange error:", error)
@@ -55,10 +49,9 @@ export async function GET(request: Request) {
         )}`
       )
     }
-    console.log("Session exchange successful, user:", data.session.user.id)
 
     // First check if profile exists
-    console.log("Checking for existing profile...")
+
     const { data: existingProfile, error: fetchError } = await supabase
       .from("profiles")
       .select("user_type, onboarding_completed")
@@ -77,7 +70,6 @@ export async function GET(request: Request) {
 
     // If no profile exists, create one with the user type
     if (!existingProfile) {
-      console.log("No existing profile, creating new one with type:", userType)
       const { data: profile, error: insertError } = await supabase
         .from("profiles")
         .insert({
@@ -96,7 +88,6 @@ export async function GET(request: Request) {
           )}`
         )
       }
-      console.log("Profile created successfully")
     }
 
     // Get the final profile state
@@ -104,7 +95,6 @@ export async function GET(request: Request) {
       user_type: userType || "creator",
       onboarding_completed: false,
     }
-    console.log("Final profile state:", profile)
 
     // Determine redirect URL
     const redirectUrl = !profile.onboarding_completed
@@ -113,7 +103,6 @@ export async function GET(request: Request) {
         }`
       : `${process.env.NEXT_PUBLIC_BASE_URL}${next}`
 
-    console.log("Redirecting to:", redirectUrl)
     const response = NextResponse.redirect(redirectUrl)
 
     // Set the auth cookie

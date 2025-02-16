@@ -130,24 +130,18 @@ export async function updateSubmissionVideoUrl(
   submissionId: string,
   videoUrl: string
 ) {
-  console.log("=== Starting updateSubmissionVideoUrl server action ===")
-  console.log("Submission ID:", submissionId)
-  console.log("Video URL:", videoUrl)
-
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    console.log("No authenticated user found")
     return { success: false, error: "Not authenticated" }
   }
-  console.log("Authenticated user:", user.id)
 
   try {
     // Get the creator's TikTok access token
-    console.log("Fetching creator's TikTok access token...")
+
     const { data: creator, error: creatorError } = await supabase
       .from("creators")
       .select("tiktok_access_token")
@@ -160,38 +154,24 @@ export async function updateSubmissionVideoUrl(
     }
 
     if (!creator?.tiktok_access_token) {
-      console.log("No TikTok access token found for creator")
       return { success: false, error: "TikTok not connected" }
     }
 
-    console.log(
-      "Found TikTok access token:",
-      creator.tiktok_access_token.slice(0, 10) + "..."
-    )
-
     // Get video info from TikTok
     const tiktokApi = new TikTokAPI()
-    console.log("Fetching video info from TikTok...")
+
     const videoInfo = await tiktokApi.getVideoInfo(
       videoUrl,
       creator.tiktok_access_token,
       user.id
     )
-    console.log("Video info from TikTok:", videoInfo)
 
     if (!videoInfo) {
-      console.log("No video info returned from TikTok")
       return { success: false, error: "Could not fetch video information" }
     }
 
-    console.log("Updating submission in database...")
-    console.log("Update data:", {
-      video_url: videoUrl,
-      views: videoInfo.views,
-    })
-
     // Update the submission with video URL and views
-    console.log("Attempting to update submission with user_id:", user.id)
+
     const { data: updatedSubmission, error: updateError } = await supabase
       .from("submissions")
       .update({
@@ -216,7 +196,6 @@ export async function updateSubmissionVideoUrl(
         console.error("Error checking submission:", checkError)
         throw new Error("Failed to verify submission ownership")
       } else {
-        console.log("Found submission:", existingSubmission)
         if (existingSubmission.user_id !== user.id) {
           throw new Error(
             "You do not have permission to update this submission"
@@ -226,12 +205,9 @@ export async function updateSubmissionVideoUrl(
       throw updateError
     }
 
-    console.log("Successfully updated submission:", updatedSubmission)
-
     revalidatePath("/submissions")
     revalidatePath("/dashboard")
 
-    console.log("=== Completed updateSubmissionVideoUrl ===")
     return { success: true, views: videoInfo.views }
   } catch (error) {
     console.error("Error in updateSubmissionVideoUrl:", error)

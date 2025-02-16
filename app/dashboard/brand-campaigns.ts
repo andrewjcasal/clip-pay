@@ -45,7 +45,8 @@ export const getBrandCampaigns = async (): Promise<
         transcription,
         status,
         created_at,
-        views
+        views,
+        auto_moderation_result
       )
     `
     )
@@ -97,6 +98,11 @@ export const getBrandCampaigns = async (): Promise<
         created_at: string
         views: number
         campaign_id: string
+        auto_moderation_result: {
+          approved: boolean
+          reason: string
+          confidence: number
+        }
       }) => {
         const creator = creators?.find((c) => c.id === submission.user_id)
         return {
@@ -113,6 +119,7 @@ export const getBrandCampaigns = async (): Promise<
             full_name: creator?.organization_name || "",
             email: user.email || "",
           },
+          auto_moderation_result: submission.auto_moderation_result,
         }
       }
     ),

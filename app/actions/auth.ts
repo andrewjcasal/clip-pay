@@ -143,13 +143,11 @@ export async function resetPassword(password: string) {
 }
 
 export async function signInWithGoogle(userType: "creator" | "brand") {
-  console.log("Starting Google sign in with user type:", userType)
   const supabase = await createServerActionClient()
 
   // Use the exact URL pattern that matches Supabase configuration
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
   const redirectUrl = new URL(`/auth/${userType}/callback`, baseUrl)
-  console.log("Redirect URL:", redirectUrl.toString())
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -162,14 +160,12 @@ export async function signInWithGoogle(userType: "creator" | "brand") {
     },
   })
 
-  console.log("Google sign in response:", { data, error })
   if (error) {
     console.error("Google sign in error:", error)
     throw error
   }
 
   if (data?.url) {
-    console.log("Redirecting to:", data.url)
     return data.url
   }
 

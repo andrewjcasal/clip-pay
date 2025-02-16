@@ -363,36 +363,22 @@ export function CreatorDashboardClient({
   }
 
   const handleUpdateVideoUrl = async (submissionId: string) => {
-    console.log("=== Starting handleUpdateVideoUrl in creator dashboard ===")
-    console.log("Submission ID:", submissionId)
-    console.log("Video URL state:", videoUrl)
-
     if (!videoUrl) {
-      console.log("No video URL provided, returning early")
       return
     }
 
     try {
-      console.log("Setting updating state to true")
       setUpdatingUrl(true)
 
-      console.log("Calling updateSubmissionVideoUrl with:", {
-        submissionId,
-        videoUrl,
-      })
       const result = await updateSubmissionVideoUrl(submissionId, videoUrl)
-      console.log("Update result:", result)
 
       if (!result.success) {
-        console.log("Update failed with error:", result.error)
         throw new Error(result.error || "Failed to update video URL")
       }
 
-      console.log("Update successful, updating local campaign state")
       setCampaigns((prevCampaigns) => {
         const newCampaigns = prevCampaigns.map((campaign) => {
           if (campaign.submission?.id === submissionId) {
-            console.log("Updating campaign:", campaign.id)
             return {
               ...campaign,
               submission: selectedCampaign?.submission
@@ -409,13 +395,11 @@ export function CreatorDashboardClient({
           }
           return campaign
         })
-        console.log("New campaigns state:", newCampaigns)
+
         return newCampaigns
       })
 
-      console.log("Checking if selected campaign needs update")
       if (selectedCampaign?.submission?.id === submissionId) {
-        console.log("Updating selected campaign")
         setSelectedCampaign({
           ...selectedCampaign,
           submission: selectedCampaign?.submission
@@ -431,7 +415,6 @@ export function CreatorDashboardClient({
         })
       }
 
-      console.log("Resetting edit state and video URL")
       setIsEditing(false)
       setVideoUrl("") // Reset video URL after successful update
       toast.success("Video URL updated successfully!")
@@ -441,9 +424,7 @@ export function CreatorDashboardClient({
         error instanceof Error ? error.message : "Failed to update video URL"
       )
     } finally {
-      console.log("Setting updating state to false")
       setUpdatingUrl(false)
-      console.log("=== Completed handleUpdateVideoUrl ===")
     }
   }
 

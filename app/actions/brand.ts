@@ -28,7 +28,6 @@ export async function updateBrandProfile(organizationName: string) {
     return { success: true }
   } catch (error) {
     console.error("Error updating brand profile:", error)
-    console.log("in here")
     return {
       success: false,
       error:

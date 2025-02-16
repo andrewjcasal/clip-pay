@@ -135,11 +135,11 @@ async function processVideo(
       .select(
         `
         *,
-        campaign:campaigns (
+        campaign:campaigns!inner (
           title,
           guidelines,
           video_outline,
-          brand:brands (
+          brand:brands!inner (
             auto_approval_enabled
           )
         )
@@ -152,9 +152,14 @@ async function processVideo(
       throw new Error("Failed to get submission details")
     }
 
+    if (!submission.campaign || !submission.campaign.brand) {
+      throw new Error(
+        "Failed to get submission details: Campaign data not found"
+      )
+    }
+
     // Check if auto-approval is enabled for this brand
     if (submission.campaign.brand.auto_approval_enabled) {
-      console.log("Auto-approval is enabled, evaluating submission...")
       try {
         const evaluation = await evaluateSubmission(
           submission.campaign.title,
@@ -162,8 +167,6 @@ async function processVideo(
           submission.campaign.video_outline,
           transcription
         )
-
-        console.log("Evaluation result:", evaluation)
 
         // Only auto-approve/reject if confidence is high enough
         if (evaluation.confidence >= 0.8) {
@@ -191,7 +194,6 @@ async function processVideo(
             },
           })
 
-          console.log(`Submission auto-${newStatus}`)
           return
         }
       } catch (error) {
