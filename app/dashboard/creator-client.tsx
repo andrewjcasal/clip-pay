@@ -26,7 +26,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import ReactPlayer from "react-player"
+import { VideoPlayer } from "@/components/video-player"
 import { VideoUrlInput } from "@/components/video-url-input"
 
 interface Campaign {
@@ -470,6 +470,17 @@ export function CreatorDashboardClient({
               .
             </p>
           </div>
+          {selectedCampaign?.submission?.file_path && (
+            <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-zinc-900 mb-3">
+                Preview Your Submission
+              </h4>
+              <VideoPlayer
+                url={selectedCampaign.submission.file_path}
+                isSupabaseStorage={true}
+              />
+            </div>
+          )}
         </div>
       )
     }
@@ -554,6 +565,17 @@ export function CreatorDashboardClient({
               </p>
             )}
           </div>
+          {selectedCampaign.submission.file_path && (
+            <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-zinc-900 mb-3">
+                Your Submission
+              </h4>
+              <VideoPlayer
+                url={selectedCampaign.submission.file_path}
+                isSupabaseStorage={true}
+              />
+            </div>
+          )}
         </div>
       )
     }
@@ -973,13 +995,11 @@ export function CreatorDashboardClient({
             <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-white border-zinc-200">
               <DialogTitle className="sr-only">Video Submission</DialogTitle>
               <div className="aspect-video w-full bg-black">
-                {selectedVideo && (
-                  <ReactPlayer
-                    url={selectedVideo}
-                    width="100%"
-                    height="100%"
-                    controls
-                    playing
+                {selectedCampaign?.submission?.file_path && (
+                  <VideoPlayer
+                    url={selectedCampaign.submission.file_path}
+                    autoPlay={true}
+                    isSupabaseStorage={true}
                   />
                 )}
               </div>

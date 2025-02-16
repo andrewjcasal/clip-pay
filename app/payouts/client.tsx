@@ -13,7 +13,7 @@ import { loadStripe } from "@stripe/stripe-js"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import ReactPlayer from "react-player"
+import { VideoPlayer } from "@/components/video-player"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 
 interface PayoutsClientProps {
@@ -274,13 +274,7 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                     </VisuallyHidden>
                     <div className="aspect-video w-full bg-black">
                       {selectedVideo && (
-                        <ReactPlayer
-                          url={selectedVideo}
-                          width="100%"
-                          height="100%"
-                          controls
-                          playing
-                        />
+                        <VideoPlayer url={selectedVideo} autoPlay={true} />
                       )}
                     </div>
                   </DialogContent>

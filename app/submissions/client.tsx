@@ -15,7 +15,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import ReactPlayer from "react-player"
+import { VideoPlayer } from "@/components/video-player"
 import type { SubmissionWithCampaign } from "./page"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -470,11 +470,9 @@ export function SubmissionsClient({
                       Submission Video
                     </h4>
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-                      <ReactPlayer
-                        url={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`}
-                        width="100%"
-                        height="100%"
-                        controls
+                      <VideoPlayer
+                        url={selectedSubmission.file_path}
+                        isSupabaseStorage={true}
                       />
                     </div>
                   </div>
@@ -499,13 +497,7 @@ export function SubmissionsClient({
           <DialogTitle className="sr-only">Video Submission</DialogTitle>
           <div className="aspect-video w-full bg-black">
             {selectedVideo && (
-              <ReactPlayer
-                url={selectedVideo}
-                width="100%"
-                height="100%"
-                controls
-                playing
-              />
+              <VideoPlayer url={selectedVideo} autoPlay={true} />
             )}
           </div>
         </DialogContent>

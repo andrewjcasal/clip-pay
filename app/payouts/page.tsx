@@ -102,7 +102,7 @@ export default async function PayoutsPage() {
   return (
     <div className="min-h-screen bg-white">
       <DashboardHeader userType="brand" email={user.email || ""} />
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-64 min-h-screen pt-20 lg:pt-8">
         <PayoutsClient submissions={submissions || []} />
       </main>
     </div>

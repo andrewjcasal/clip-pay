@@ -18,7 +18,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { formatDistanceToNow } from "date-fns"
-import ReactPlayer from "react-player"
 import {
   approveSubmission,
   rejectSubmission,
@@ -31,6 +30,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { DollarSign, FileText, Users, RotateCw, X } from "lucide-react"
+import { VideoPlayer } from "@/components/video-player"
 
 type SubmissionCreator = {
   full_name: string | null
@@ -991,36 +991,11 @@ export function DashboardClient({
                         Selected Submission
                       </h3>
                       <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-3">
-                        {(selectedSubmission.video_url ||
-                          selectedSubmission.file_path) && (
-                          <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-                            <ReactPlayer
-                              url={
-                                selectedSubmission.video_url ||
-                                (selectedSubmission.file_path
-                                  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/${selectedSubmission.file_path}`
-                                  : undefined)
-                              }
-                              width="100%"
-                              height="100%"
-                              controls
-                              playing={false}
-                              playsinline
-                              config={{
-                                file: {
-                                  attributes: {
-                                    crossOrigin: "anonymous",
-                                  },
-                                },
-                              }}
-                              onError={(e) => {
-                                console.error("Video playback error:", e)
-                                toast.error(
-                                  "Failed to load video. Please try again."
-                                )
-                              }}
-                            />
-                          </div>
+                        {selectedSubmission.file_path && (
+                          <VideoPlayer
+                            url={selectedSubmission.file_path}
+                            isSupabaseStorage={true}
+                          />
                         )}
 
                         <div className="flex items-center justify-between">
