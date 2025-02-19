@@ -51,8 +51,8 @@ interface SignUpFormProps {
 
 export function SignUpForm({ userType }: SignUpFormProps) {
   const formId = useId()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isSigningUp, setIsSigningUp] = useState(false)
+  const [isGoogleSigningUp, setIsGoogleSigningUp] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [email, setEmail] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -60,7 +60,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setIsSigningUp(true)
     setError(null)
 
     const formData = new FormData(e.target as HTMLFormElement)
@@ -79,7 +79,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
         error instanceof Error ? error.message : "An unexpected error occurred"
       )
     } finally {
-      setIsLoading(false)
+      setIsSigningUp(false)
     }
   }
 
@@ -218,9 +218,9 @@ export function SignUpForm({ userType }: SignUpFormProps) {
           <Button
             type="submit"
             className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] dark:bg-[#5865F2] dark:hover:bg-[#4752C4] text-white dark:text-white"
-            disabled={isLoading || isGoogleLoading}
+            disabled={isSigningUp}
           >
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isSigningUp ? "Creating account..." : "Create Account"}
           </Button>
 
           <div className="relative">
@@ -240,7 +240,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
             className="w-full h-11 dark:text-white border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
             onClick={async () => {
               try {
-                setIsGoogleLoading(true)
+                setIsGoogleSigningUp(true)
                 setError(null)
                 const url = await signInWithGoogle(userType)
                 if (url) {
@@ -255,10 +255,10 @@ export function SignUpForm({ userType }: SignUpFormProps) {
                     ? error.message
                     : "Failed to sign in with Google"
                 )
-                setIsGoogleLoading(false)
+                setIsGoogleSigningUp(false)
               }
             }}
-            disabled={isLoading || isGoogleLoading}
+            disabled={isGoogleSigningUp}
           >
             <Image
               src="/google.png"
@@ -267,7 +267,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
               height={20}
               className="mr-2"
             />
-            {isGoogleLoading ? "Connecting..." : "Sign up with Google"}
+            {isGoogleSigningUp ? "Connecting..." : "Sign up with Google"}
           </Button>
 
           <p className="text-center text-sm text-zinc-600">

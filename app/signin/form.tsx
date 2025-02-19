@@ -11,11 +11,15 @@ import { Eye, EyeOff } from "lucide-react"
 
 type State = {
   message: string
+  redirectTo?: string
 } | null
 
 const signInAction = async (prevState: State, formData: FormData) => {
   try {
-    await signIn(formData)
+    const result = await signIn(formData)
+    if (result?.redirectTo) {
+      return { redirectTo: result.redirectTo }
+    }
     return null
   } catch (error) {
     return {
@@ -27,19 +31,24 @@ const signInAction = async (prevState: State, formData: FormData) => {
 
 export default function SignInForm() {
   const formId = useId()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setIsSigningIn(true)
     setError(null)
 
     const formData = new FormData(e.target as HTMLFormElement)
 
     try {
       const result = await signInAction(null, formData)
+      if (result?.redirectTo) {
+        window.location.href = result.redirectTo
+        return
+      }
       if (result?.message) {
         setError(result.message)
       }
@@ -48,7 +57,7 @@ export default function SignInForm() {
         error instanceof Error ? error.message : "An unexpected error occurred"
       )
     } finally {
-      setIsLoading(false)
+      setIsSigningIn(false)
     }
   }
 
@@ -128,10 +137,12 @@ export default function SignInForm() {
 
           <Button
             type="submit"
-            className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
-            disabled={isLoading}
+            className={`w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white transition-opacity ${
+              isSigningIn ? "opacity-70" : ""
+            }`}
+            disabled={isSigningIn}
           >
-            {isLoading ? "Signing in..." : "Sign In"}
+            {isSigningIn ? "Signing in..." : "Sign In"}
           </Button>
           <div className="flex justify-end">
             <Link
@@ -156,10 +167,12 @@ export default function SignInForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 dark:text-white border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+            className={`w-full h-11 dark:text-white border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent transition-opacity ${
+              isGoogleSigningIn ? "opacity-70" : ""
+            }`}
             onClick={async () => {
               try {
-                setIsLoading(true)
+                setIsGoogleSigningIn(true)
                 setError(null)
                 const url = await signInWithGoogle("creator")
                 if (url) {
@@ -174,10 +187,10 @@ export default function SignInForm() {
                     ? error.message
                     : "Failed to sign in with Google"
                 )
-                setIsLoading(false)
+                setIsGoogleSigningIn(false)
               }
             }}
-            disabled={isLoading}
+            disabled={isGoogleSigningIn}
           >
             <Image
               src="/google.png"
@@ -186,7 +199,7 @@ export default function SignInForm() {
               height={20}
               className="mr-2"
             />
-            {isLoading ? "Connecting..." : "Sign in with Google"}
+            {isGoogleSigningIn ? "Connecting..." : "Sign in with Google"}
           </Button>
 
           <p className="text-center text-sm text-zinc-600">

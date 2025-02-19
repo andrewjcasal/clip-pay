@@ -38,17 +38,19 @@ export async function signIn(formData: FormData) {
 
     // Check if user is admin
     if (profile?.user_type === "admin") {
-      redirect("/admin")
+      return { redirectTo: "/admin" }
     }
 
-    // Redirect based on onboarding status
+    // Return redirect based on onboarding status
     if (!profile?.onboarding_completed) {
-      redirect(
-        `/onboarding/${profile?.user_type === "brand" ? "brand/profile" : "creator"}`
-      )
+      return {
+        redirectTo: `/onboarding/${
+          profile?.user_type === "brand" ? "brand/profile" : "creator"
+        }`,
+      }
     }
 
-    redirect("/dashboard")
+    return { redirectTo: "/dashboard" }
   } catch (error) {
     throw error instanceof Error
       ? error

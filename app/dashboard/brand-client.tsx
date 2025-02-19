@@ -737,25 +737,18 @@ export function DashboardClient({
                     value={newCampaign.rpm}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9.]/g, "")
-                      const parsed = parseFloat(value)
-                      if (!isNaN(parsed)) {
+                      // Only update if it's empty or a valid decimal number
+                      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
                         setNewCampaign({
                           ...newCampaign,
-                          rpm: parsed.toFixed(2),
-                        })
-                      } else {
-                        setNewCampaign({
-                          ...newCampaign,
-                          rpm: "",
+                          rpm: value,
                         })
                       }
                       setErrors({ ...errors, rpm: false })
                     }}
                     className="pl-7 bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]"
                     placeholder="0.00"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
                     inputMode="decimal"
                   />
                 </div>
@@ -779,26 +772,18 @@ export function DashboardClient({
                     value={newCampaign.referral_bonus_rate}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9.]/g, "")
-                      const parsed = parseFloat(value)
-                      if (!isNaN(parsed)) {
-                        const capped = Math.min(parsed, 1)
+                      // Only update if it's empty or a valid decimal number with max 2 decimal places
+                      // Also ensure the value doesn't exceed 1.00
+                      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
                         setNewCampaign({
                           ...newCampaign,
-                          referral_bonus_rate: capped.toFixed(2),
-                        })
-                      } else {
-                        setNewCampaign({
-                          ...newCampaign,
-                          referral_bonus_rate: "",
+                          referral_bonus_rate: value,
                         })
                       }
                     }}
                     className="pl-7 h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black"
                     placeholder="0.00"
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.01"
+                    type="text"
                     inputMode="decimal"
                   />
                 </div>
