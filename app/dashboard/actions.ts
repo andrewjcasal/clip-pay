@@ -59,7 +59,7 @@ type PollSubmissionResponse = {
   status: string
   created_at: string
   views: number
-  creator_id: string
+  user_id: string
   campaign_id: string
   creator: {
     organization_name: string | null

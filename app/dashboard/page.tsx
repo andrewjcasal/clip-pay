@@ -25,6 +25,7 @@ export interface Submission {
   creator: {
     full_name: string | null
     email: string | null
+    organization_name: string | null
   }
   auto_moderation_result?: {
     approved: boolean

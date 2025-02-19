@@ -1,6 +1,10 @@
-export type SubmissionCreator = {
-  full_name: string | null
-}
+export type SubmissionCreator = Array<{
+  profile: {
+    organization_name: string | null
+    referred_by: string | null
+  }
+  tiktok_access_token: string | null
+}>
 
 export type Submission = {
   id: string

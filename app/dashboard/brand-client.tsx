@@ -43,6 +43,7 @@ import { VideoPlayer } from "@/components/video-player"
 type SubmissionCreator = {
   full_name: string | null
   email: string | null
+  organization_name: string | null
 }
 
 type Submission = {
@@ -221,10 +222,13 @@ export function DashboardClient({
                     ...campaign.submissions,
                     {
                       ...newSubmission,
-                      user_id: newSubmission.creator_id,
+                      user_id: newSubmission.user_id,
                       creator: {
-                        full_name: newSubmission.creator.organization_name,
-                        email: newSubmission.creator.email,
+                        full_name:
+                          newSubmission.creator.organization_name || null,
+                        email: newSubmission.creator.email || null,
+                        organization_name:
+                          newSubmission.creator.organization_name || null,
                       },
                     } as Submission,
                   ],
@@ -292,13 +296,30 @@ export function DashboardClient({
         try {
           setIsRefreshingViews(true)
           const result = await updateCampaignViews(selectedCampaign.id)
-          if (result.data) {
-            setSelectedCampaign(result.data)
-            setCampaigns(
-              (prevCampaigns) =>
-                prevCampaigns.map((c) =>
-                  c.id === result.data?.id ? result.data : c
-                ) as CampaignWithSubmissions[]
+          if (result.success) {
+            // Only update the views in the state
+            setSelectedCampaign((prev) => {
+              if (!prev) return null
+              return {
+                ...prev,
+                submissions: prev.submissions.map((sub) => ({
+                  ...sub,
+                  views: sub.views, // Keep existing views as they were updated in the database
+                })),
+              }
+            })
+            setCampaigns((prevCampaigns) =>
+              prevCampaigns.map((c) =>
+                c.id === selectedCampaign.id
+                  ? {
+                      ...c,
+                      submissions: c.submissions.map((sub) => ({
+                        ...sub,
+                        views: sub.views, // Keep existing views as they were updated in the database
+                      })),
+                    }
+                  : c
+              )
             )
           } else if (result.error) {
             toast.error("Failed to fetch views")
@@ -395,9 +416,10 @@ export function DashboardClient({
       await approveSubmission(submissionId)
 
       // Update local state
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) => {
-          const updatedSubmissions = campaign.submissions.map((submission) =>
+      setCampaigns((prevCampaigns: CampaignWithSubmissions[]) =>
+        prevCampaigns.map((campaign) => ({
+          ...campaign,
+          submissions: campaign.submissions.map((submission) =>
             submission.id === submissionId
               ? {
                   ...submission,
@@ -406,15 +428,11 @@ export function DashboardClient({
                   auto_moderation_result: submission.auto_moderation_result,
                 }
               : submission
-          )
-          return {
-            ...campaign,
-            submissions: updatedSubmissions,
-            activeSubmissionsCount: updatedSubmissions.filter(
-              (s) => s.status === "active"
-            ).length,
-          }
-        })
+          ),
+          activeSubmissionsCount: campaign.submissions.filter(
+            (s) => s.status === "active"
+          ).length,
+        }))
       )
 
       // Update selected campaign state
@@ -1015,22 +1033,40 @@ export function DashboardClient({
                                 const result = await updateCampaignViews(
                                   selectedCampaign.id
                                 )
-                                if (result.data) {
-                                  const updatedCampaign = result.data
-                                  setSelectedCampaign(updatedCampaign)
+                                if (result.success) {
+                                  setSelectedCampaign((prev) => {
+                                    if (!prev) return null
+                                    return {
+                                      ...prev,
+                                      submissions: prev.submissions.map(
+                                        (sub) => ({
+                                          ...sub,
+                                          views: sub.views,
+                                        })
+                                      ),
+                                    }
+                                  })
                                   setCampaigns((prevCampaigns) =>
                                     prevCampaigns.map((c) =>
-                                      c.id === updatedCampaign.id
-                                        ? updatedCampaign
+                                      c.id === selectedCampaign.id
+                                        ? {
+                                            ...c,
+                                            submissions: c.submissions.map(
+                                              (sub) => ({
+                                                ...sub,
+                                                views: sub.views,
+                                              })
+                                            ),
+                                          }
                                         : c
                                     )
                                   )
                                 } else if (result.error) {
-                                  toast.error("Failed to refresh views")
+                                  toast.error("Failed to fetch views")
                                 }
                               } catch (error) {
-                                console.error("Error refreshing views:", error)
-                                toast.error("Failed to refresh views")
+                                console.error("Error fetching views:", error)
+                                toast.error("Failed to fetch views")
                               } finally {
                                 setIsRefreshingViews(false)
                               }
