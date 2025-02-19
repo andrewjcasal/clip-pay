@@ -51,9 +51,7 @@ export function ProfileForm() {
           <h1 className="text-2xl font-semibold text-black">
             Complete Your Profile
           </h1>
-          <p className="text-base text-[#475467]">
-            Tell us about your organization
-          </p>
+          <p className="text-base text-[#475467]">Tell us about you</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -99,7 +97,7 @@ export function ProfileForm() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-11 bg-black hover:bg-black/90 text-white"
+            className="w-full h-11 hover:bg-black/90 text-white dark:bg-[#5865F2] bg-[#5865F2] dark:hover:bg-[#4752C4] dark:hover:bg-[#4752C4] dark:text-white"
           >
             {isLoading ? "Setting up..." : "Complete Setup"}
           </Button>

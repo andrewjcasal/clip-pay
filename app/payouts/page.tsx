@@ -3,11 +3,13 @@ import { redirect } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PayoutsClient } from "./client"
 import { Database } from "@/types/supabase"
+import { TikTokAPI } from "@/lib/tiktok"
 
 type Tables = Database["public"]["Tables"]
 type SubmissionRow = Tables["submissions"]["Row"]
 type CampaignRow = Tables["campaigns"]["Row"]
 type ProfileRow = Tables["profiles"]["Row"]
+type CreatorRow = Tables["creators"]["Row"]
 
 export interface SubmissionWithDetails {
   id: string
@@ -24,13 +26,15 @@ export interface SubmissionWithDetails {
       profile: Pick<ProfileRow, "organization_name">
     }
   }
-  creator: {
+  creator: Array<{
     profile: Pick<ProfileRow, "organization_name" | "referred_by">
-  }
+    tiktok_access_token: string | null
+  }>
 }
 
 export default async function PayoutsPage() {
   const supabase = await createServerSupabaseClient()
+  const tiktokApi = new TikTokAPI()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -83,13 +87,14 @@ export default async function PayoutsPage() {
         profile:profiles (
           organization_name,
           referred_by
-        )
+        ),
+        tiktok_access_token
       )
     `
     )
     .eq("status", "approved")
-    .eq("campaign.user_id", brand.user_id) // Filter by brand's ID
-    .not("video_url", "is", null) // Only get submissions with a video URL
+    .eq("campaign.user_id", brand.user_id)
+    .not("video_url", "is", null)
     .lte("payout_due_date", new Date().toISOString())
     .order("payout_due_date", { ascending: true })
     .returns<SubmissionWithDetails[]>()
@@ -97,6 +102,31 @@ export default async function PayoutsPage() {
   if (submissionsError) {
     console.error("Error fetching submissions:", submissionsError)
     return <div>Error loading submissions</div>
+  }
+
+  // Update views for each submission
+  if (submissions) {
+    for (const submission of submissions) {
+      if (submission.video_url && submission.creator[0]?.tiktok_access_token) {
+        try {
+          const views = await tiktokApi.getVideoViews(
+            submission.video_url,
+            submission.creator[0].tiktok_access_token
+          )
+
+          // Update the views in the database
+          await supabase
+            .from("submissions")
+            .update({ views })
+            .eq("id", submission.id)
+
+          // Update the views in our local submissions data
+          submission.views = views
+        } catch (error) {
+          console.error("Error updating views for submission:", error)
+        }
+      }
+    }
   }
 
   return (

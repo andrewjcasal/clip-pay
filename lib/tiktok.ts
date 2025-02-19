@@ -266,4 +266,29 @@ export class TikTokAPI {
       throw error
     }
   }
+
+  async getVideoViews(videoId: string, accessToken: string): Promise<number> {
+    try {
+      const response = await fetch(
+        `https://open.tiktokapis.com/v2/video/query/?fields=stats`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video views: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      return data.stats?.play_count || 0
+    } catch (error) {
+      console.error('Error fetching video views:', error)
+      return 0
+    }
+  }
 } 

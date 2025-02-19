@@ -10,6 +10,8 @@ import { Deepgram } from "@deepgram/sdk"
 import { Database } from "@/types/supabase"
 import { updateSubmissionVideoUrl as updateVideo } from "@/app/actions/creator"
 import { evaluateSubmission } from "@/lib/openai"
+import { TikTokAPI } from "@/lib/tiktok"
+import { CampaignWithSubmissions } from "@/types/campaigns"
 
 const execAsync = promisify(exec)
 
@@ -20,9 +22,6 @@ if (!DEEPGRAM_API_KEY) {
 }
 
 const deepgram = new Deepgram(DEEPGRAM_API_KEY)
-
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
-type Brand = Database["public"]["Tables"]["brands"]["Row"]
 
 interface ProfileWithBrand {
   user_id: string
@@ -235,7 +234,6 @@ export async function createCampaign({
   if (!user) {
     throw new Error("Not authenticated")
   }
-
   // Get brand ID and profile separately
   const { data: brand } = await supabase
     .from("brands")
@@ -285,29 +283,38 @@ export async function createCampaign({
   ) {
     throw new Error("Invalid referral bonus rate")
   }
+  try {
+    // Create the campaign
+    const { data: campaign, error: campaignError } = await supabase
+      .from("campaigns")
+      .insert({
+        title,
+        budget_pool,
+        rpm,
+        guidelines,
+        video_outline,
+        referral_bonus_rate,
+        user_id: user.id,
+        status: "active",
+      })
+      .select()
+      .single()
 
-  const { data: campaign, error: campaignError } = await supabase
-    .from("campaigns")
-    .insert({
-      title,
-      budget_pool: numericBudgetPool,
-      rpm: numericRpm,
-      guidelines,
-      video_outline,
-      referral_bonus_rate: numericReferralRate,
-      user_id: user.id,
-      status: "active",
-    })
-    .select()
-    .single()
+    if (campaignError) {
+      console.error("Error creating campaign:", campaignError)
+      throw campaignError
+    }
 
-  if (campaignError) {
-    console.error("Error creating campaign:", campaignError)
-    throw campaignError
+    revalidatePath("/dashboard")
+    return { success: true, campaign }
+  } catch (error) {
+    console.error("Error in createCampaign:", error)
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to create campaign",
+    }
   }
-
-  revalidatePath("/dashboard")
-  return campaign
 }
 
 async function processVideo(
@@ -690,4 +697,61 @@ export async function updateSubmissionVideoUrl(
   videoUrl: string
 ) {
   return updateVideo(submissionId, videoUrl)
+}
+
+export async function updateCampaignViews(
+  campaignId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const tiktokApi = new TikTokAPI()
+
+  try {
+    // Get all submissions for this campaign
+    const { data: submissions, error: submissionsError } = await supabase
+      .from("submissions")
+      .select(
+        `
+        id,
+        video_url,
+        creator:creators!inner (
+          tiktok_access_token
+        )
+      `
+      )
+      .eq("campaign_id", campaignId)
+      .eq("status", "approved")
+
+    if (submissionsError) throw submissionsError
+
+    // Update views for each submission
+    for (const submission of submissions || []) {
+      if (submission.video_url && submission.creator[0]?.tiktok_access_token) {
+        try {
+          const views = await tiktokApi.getVideoViews(
+            submission.video_url,
+            submission.creator[0].tiktok_access_token
+          )
+
+          // Update only the views for this submission
+          await supabase
+            .from("submissions")
+            .update({ views })
+            .eq("id", submission.id)
+        } catch (error) {
+          console.error("Error updating views for submission:", error)
+        }
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error in updateCampaignViews:", error)
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "An error occurred while updating views",
+    }
+  }
 }

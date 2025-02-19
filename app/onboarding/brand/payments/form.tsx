@@ -114,13 +114,13 @@ function PaymentForm() {
           onClick={handleSkip}
           disabled={isLoading}
           variant="outline"
-          className="dark:text-white flex-1 h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
+          className="bg-gray-700 dark:bg-gray-700 dark:text-white flex-1 h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
         >
           Skip for Now
         </Button>
         <Button
           type="submit"
-          className="flex-1 h-11 bg-black hover:bg-black/90 text-white"
+          className="flex-1 h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
           disabled={isLoading || !isElementReady}
         >
           {isLoading ? "Setting up..." : "Set up payments"}

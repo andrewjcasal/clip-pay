@@ -1,24 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { X, Search, Star, Pencil } from "lucide-react"
+import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { updateSubmissionVideoUrl } from "@/app/actions/creator"
 import { toast } from "sonner"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { VideoPlayer } from "@/components/video-player"
 import type { SubmissionWithCampaign } from "./page"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { Checkbox } from "@/components/ui/checkbox"
 import { VideoUrlInput } from "@/components/video-url-input"
 
 interface SubmissionsClientProps {
@@ -64,43 +56,6 @@ export function SubmissionsClient({
         return true
     }
   })
-
-  const handleUpdateVideoUrl = async (submissionId: string) => {
-    if (!videoUrls[submissionId]) {
-      return
-    }
-
-    try {
-      setUpdatingSubmissionId(submissionId)
-
-      const result = await updateSubmissionVideoUrl(
-        submissionId,
-        videoUrls[submissionId]
-      )
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to update video URL")
-      }
-
-      setVideoUrls((prev) => {
-        const newState = {
-          ...prev,
-          [submissionId]: "",
-        }
-
-        return newState
-      })
-
-      toast.success("Video URL updated successfully!")
-    } catch (error) {
-      console.error("Error updating video URL:", error)
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update video URL"
-      )
-    } finally {
-      setUpdatingSubmissionId(null)
-    }
-  }
 
   return (
     <div className="min-h-screen bg-white">

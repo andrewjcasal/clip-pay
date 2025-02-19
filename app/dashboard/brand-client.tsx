@@ -23,13 +23,21 @@ import {
   rejectSubmission,
   createCampaign,
   pollNewSubmissions,
+  updateCampaignViews,
 } from "./actions"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { DollarSign, FileText, Users, RotateCw, X } from "lucide-react"
+import {
+  DollarSign,
+  FileText,
+  Users,
+  RotateCw,
+  X,
+  RefreshCw,
+} from "lucide-react"
 import { VideoPlayer } from "@/components/video-player"
 
 type SubmissionCreator = {
@@ -178,6 +186,7 @@ export function DashboardClient({
   const router = useRouter()
   const [selectedSubmission, setSelectedSubmission] =
     useState<Submission | null>(null)
+  const [isRefreshingViews, setIsRefreshingViews] = useState(false)
 
   useEffect(() => {
     // Poll for new submissions every minute
@@ -276,6 +285,36 @@ export function DashboardClient({
     }
   }, [selectedCampaign])
 
+  // Add effect to fetch views when campaign is selected
+  useEffect(() => {
+    if (selectedCampaign) {
+      const fetchViews = async () => {
+        try {
+          setIsRefreshingViews(true)
+          const result = await updateCampaignViews(selectedCampaign.id)
+          if (result.data) {
+            setSelectedCampaign(result.data)
+            setCampaigns(
+              (prevCampaigns) =>
+                prevCampaigns.map((c) =>
+                  c.id === result.data?.id ? result.data : c
+                ) as CampaignWithSubmissions[]
+            )
+          } else if (result.error) {
+            toast.error("Failed to fetch views")
+          }
+        } catch (error) {
+          console.error("Error fetching views:", error)
+          toast.error("Failed to fetch views")
+        } finally {
+          setIsRefreshingViews(false)
+        }
+      }
+
+      fetchViews()
+    }
+  }, [selectedCampaign?.id])
+
   const validateForm = () => {
     const newErrors: FormErrors = {}
 
@@ -312,13 +351,13 @@ export function DashboardClient({
       // Update local state with the new campaign
       setCampaigns((prevCampaigns) => [
         {
-          id: newCampaignData.id,
-          title: newCampaignData.title,
-          budget_pool: String(newCampaignData.budget_pool),
-          rpm: String(newCampaignData.rpm),
-          guidelines: newCampaignData.guidelines,
-          video_outline: newCampaignData.video_outline,
-          status: newCampaignData.status,
+          id: newCampaignData.campaign.id,
+          title: newCampaignData.campaign.title,
+          budget_pool: String(newCampaignData.campaign.budget_pool),
+          rpm: String(newCampaignData.campaign.rpm),
+          guidelines: newCampaignData.campaign.guidelines,
+          video_outline: newCampaignData.campaign.video_outline,
+          status: newCampaignData.campaign.status,
           brand: {
             name: "Loading...", // This will be updated on the next data fetch
             payment_verified: false,
@@ -854,9 +893,19 @@ export function DashboardClient({
         {selectedCampaign && (
           <div className="h-full flex flex-col bg-white">
             <div className="flex items-center justify-between p-3 border-b border-zinc-200 bg-white">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Campaign Details
-              </h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-semibold text-zinc-900">
+                  Campaign Details
+                </h2>
+                {isRefreshingViews && (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-zinc-500" />
+                    <span className="text-sm text-zinc-500">
+                      Updating views...
+                    </span>
+                  </div>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -910,19 +959,24 @@ export function DashboardClient({
                                 ago
                               </p>
                             </div>
-                            <span
-                              className={cn(
-                                "text-xs px-2 py-1 rounded-full font-medium",
-                                submission.status === "approved"
-                                  ? "bg-green-50 text-green-700"
-                                  : submission.status === "rejected"
-                                    ? "bg-red-50 text-red-700"
-                                    : "bg-yellow-50 text-yellow-700"
-                              )}
-                            >
-                              {submission.status.charAt(0).toUpperCase() +
-                                submission.status.slice(1)}
-                            </span>
+                            <div className="flex flex-col items-end gap-1">
+                              <span
+                                className={cn(
+                                  "text-xs px-2 py-1 rounded-full font-medium",
+                                  submission.status === "approved"
+                                    ? "bg-green-50 text-green-700"
+                                    : submission.status === "rejected"
+                                      ? "bg-red-50 text-red-700"
+                                      : "bg-yellow-50 text-yellow-700"
+                                )}
+                              >
+                                {submission.status.charAt(0).toUpperCase() +
+                                  submission.status.slice(1)}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                {submission.views?.toLocaleString() || 0} views
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -939,19 +993,73 @@ export function DashboardClient({
                       <h2 className="text-xl font-bold text-zinc-900">
                         {selectedCampaign.title}
                       </h2>
-                      <span
-                        className={cn(
-                          "text-sm px-2.5 py-0.5 rounded-full font-medium",
-                          selectedCampaign.status === "active"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-zinc-100 text-zinc-600"
-                        )}
-                      >
-                        {(selectedCampaign.status || "Draft")
-                          .charAt(0)
-                          .toUpperCase() +
-                          (selectedCampaign.status || "Draft").slice(1)}
-                      </span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-zinc-600">
+                            Total Views:
+                          </span>
+                          <span className="text-sm font-medium text-zinc-900">
+                            {selectedCampaign.submissions
+                              .reduce(
+                                (total, sub) => total + (sub.views || 0),
+                                0
+                              )
+                              .toLocaleString()}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              try {
+                                setIsRefreshingViews(true)
+                                const result = await updateCampaignViews(
+                                  selectedCampaign.id
+                                )
+                                if (result.data) {
+                                  const updatedCampaign = result.data
+                                  setSelectedCampaign(updatedCampaign)
+                                  setCampaigns((prevCampaigns) =>
+                                    prevCampaigns.map((c) =>
+                                      c.id === updatedCampaign.id
+                                        ? updatedCampaign
+                                        : c
+                                    )
+                                  )
+                                } else if (result.error) {
+                                  toast.error("Failed to refresh views")
+                                }
+                              } catch (error) {
+                                console.error("Error refreshing views:", error)
+                                toast.error("Failed to refresh views")
+                              } finally {
+                                setIsRefreshingViews(false)
+                              }
+                            }}
+                            className="h-8 w-8"
+                            disabled={isRefreshingViews}
+                          >
+                            <RefreshCw
+                              className={cn(
+                                "h-4 w-4",
+                                isRefreshingViews && "animate-spin"
+                              )}
+                            />
+                          </Button>
+                        </div>
+                        <span
+                          className={cn(
+                            "text-sm px-2.5 py-0.5 rounded-full font-medium",
+                            selectedCampaign.status === "active"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-zinc-100 text-zinc-600"
+                          )}
+                        >
+                          {(selectedCampaign.status || "Draft")
+                            .charAt(0)
+                            .toUpperCase() +
+                            (selectedCampaign.status || "Draft").slice(1)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1015,21 +1123,27 @@ export function DashboardClient({
                         )}
 
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium text-zinc-900">
-                              {selectedSubmission.creator.full_name ||
-                                "Anonymous"}
-                            </span>
-                            <span className="text-zinc-500">
-                              {selectedSubmission.creator.email}
-                            </span>
-                            <span className="text-zinc-400">
-                              submitted{" "}
-                              {formatDistanceToNow(
-                                new Date(selectedSubmission.created_at)
-                              )}{" "}
-                              ago
-                            </span>
+                          <div className="flex items-center gap-2 text-sm justify-between">
+                            <div>
+                              <span className="font-medium text-zinc-900">
+                                {selectedSubmission.creator.full_name ||
+                                  "Anonymous"}
+                              </span>
+                              <span className="ml-1 text-zinc-400">
+                                submitted{" "}
+                                {formatDistanceToNow(
+                                  new Date(selectedSubmission.created_at)
+                                )}{" "}
+                                ago
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-zinc-900">
+                                {selectedSubmission.views?.toLocaleString() ||
+                                  0}{" "}
+                                views
+                              </span>
+                            </div>
                           </div>
 
                           {selectedSubmission.status === "pending" ? (

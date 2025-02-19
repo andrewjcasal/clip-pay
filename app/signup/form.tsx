@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -50,7 +50,9 @@ interface SignUpFormProps {
 }
 
 export function SignUpForm({ userType }: SignUpFormProps) {
+  const formId = useId()
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [email, setEmail] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -156,7 +158,12 @@ export function SignUpForm({ userType }: SignUpFormProps) {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          key={formId}
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          suppressHydrationWarning
+        >
           <div className="space-y-2">
             <Label
               htmlFor="email"
@@ -164,14 +171,16 @@ export function SignUpForm({ userType }: SignUpFormProps) {
             >
               Email
             </Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              className="h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 text-[#1D2939]"
-              placeholder="anna@gmail.com"
-              required
-            />
+            <InputWrapper>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                className="h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 text-[#1D2939]"
+                placeholder="anna@gmail.com"
+                required
+              />
+            </InputWrapper>
           </div>
 
           <div className="space-y-2">
@@ -181,7 +190,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
             >
               Password
             </Label>
-            <div className="relative">
+            <InputWrapper>
               <Input
                 id="password"
                 name="password"
@@ -193,6 +202,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                tabIndex={-1}
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" />
@@ -200,15 +210,15 @@ export function SignUpForm({ userType }: SignUpFormProps) {
                   <Eye className="h-5 w-5" />
                 )}
               </button>
-            </div>
+            </InputWrapper>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <Button
             type="submit"
-            className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white"
-            disabled={isLoading}
+            className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] dark:bg-[#5865F2] dark:hover:bg-[#4752C4] text-white dark:text-white"
+            disabled={isLoading || isGoogleLoading}
           >
             {isLoading ? "Creating account..." : "Create Account"}
           </Button>
@@ -227,29 +237,28 @@ export function SignUpForm({ userType }: SignUpFormProps) {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] dark:text-white hover:text-[#5865F2] hover:bg-transparent"
+            className="w-full h-11 dark:text-white border-[#CBD5E1] hover:border-[#5865F2] text-[#1D2939] hover:text-[#5865F2] hover:bg-transparent"
             onClick={async () => {
               try {
-                setIsLoading(true)
+                setIsGoogleLoading(true)
                 setError(null)
                 const url = await signInWithGoogle(userType)
                 if (url) {
-                  window.location.href = url
+                  window.location.assign(url)
                 } else {
                   throw new Error("No authentication URL returned")
                 }
               } catch (error) {
-                console.error("Google sign up error:", error)
+                console.error("Google sign in error:", error)
                 setError(
                   error instanceof Error
                     ? error.message
-                    : "Failed to sign up with Google"
+                    : "Failed to sign in with Google"
                 )
-              } finally {
-                setIsLoading(false)
+                setIsGoogleLoading(false)
               }
             }}
-            disabled={isLoading}
+            disabled={isLoading || isGoogleLoading}
           >
             <Image
               src="/google.png"
@@ -258,7 +267,7 @@ export function SignUpForm({ userType }: SignUpFormProps) {
               height={20}
               className="mr-2"
             />
-            {isLoading ? "Connecting..." : "Sign up with Google"}
+            {isGoogleLoading ? "Connecting..." : "Sign up with Google"}
           </Button>
 
           <p className="text-center text-sm text-zinc-600">
@@ -268,6 +277,17 @@ export function SignUpForm({ userType }: SignUpFormProps) {
               className="text-[#5865F2] hover:text-[#4752C4]"
             >
               Sign in
+            </Link>
+          </p>
+          <p className="text-center text-sm text-zinc-600">
+            {userType === "brand" ? "Are you a creator?" : "Are you a brand?"}{" "}
+            <Link
+              href={userType === "brand" ? "/signup/creator" : "/signup/brand"}
+              className="text-[#5865F2] hover:text-[#4752C4]"
+            >
+              {userType === "brand"
+                ? "Sign up as a creator"
+                : "Sign up as a brand"}
             </Link>
           </p>
         </form>

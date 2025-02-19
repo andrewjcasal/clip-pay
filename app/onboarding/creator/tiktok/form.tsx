@@ -83,7 +83,7 @@ export function TikTokAuthForm() {
           <Button
             onClick={handleTikTokAuth}
             disabled={isLoading}
-            className="w-full h-11 bg-white hover:bg-zinc-200 text-black flex items-center justify-center gap-2"
+            className="w-full h-11 bg-white hover:bg-zinc-200 border border-zinc-400 text-black flex items-center justify-center gap-2"
           >
             <Image
               src="/tiktok.png"

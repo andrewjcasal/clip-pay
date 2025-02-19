@@ -64,7 +64,7 @@ export function ConfirmationForm() {
 
         <Button
           onClick={() => router.push("/dashboard")}
-          className="w-full h-11 bg-black hover:bg-black/90 text-white"
+          className="w-full h-11 bg-[#5865F2] hover:bg-[#4752C4] text-white dark:bg-[#5865F2] dark:hover:bg-[#4752C4] dark:text-white"
         >
           Go to Dashboard
         </Button>

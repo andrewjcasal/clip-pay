@@ -46,13 +46,22 @@ export const getBrandCampaigns = async (): Promise<
         status,
         created_at,
         views,
-        auto_moderation_result
+        auto_moderation_result,
+        creator:creators!inner (
+          profile:profiles!inner (
+            organization_name
+          )
+        )
       )
     `
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
+  console.log(
+    "campaigns",
+    campaigns?.map((c) => c.submissions?.[0]?.creator)
+  )
   if (error) {
     console.error("Brand campaigns error:", error)
     throw error
@@ -103,8 +112,14 @@ export const getBrandCampaigns = async (): Promise<
           reason: string
           confidence: number
         }
+        creator: {
+          profile: {
+            organization_name: string
+          }
+        }
       }) => {
         const creator = creators?.find((c) => c.id === submission.user_id)
+        console.log("submission", submission)
         return {
           id: submission.id,
           video_url: submission.video_url || "",
@@ -116,8 +131,7 @@ export const getBrandCampaigns = async (): Promise<
           created_at: submission.created_at,
           views: submission.views || 0,
           creator: {
-            full_name: creator?.organization_name || "",
-            email: user.email || "",
+            full_name: submission.creator?.profile?.organization_name || "",
           },
           auto_moderation_result: submission.auto_moderation_result,
         }
