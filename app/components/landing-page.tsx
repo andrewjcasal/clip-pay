@@ -365,11 +365,11 @@ export function LandingPage({ view }: LandingPageProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="flex items-center space-x-4 text-sm text-zinc-600">
-                <Link href="/terms" className="hover:text-zinc-900">
+                <Link href="/legal/terms" className="hover:text-zinc-900">
                   Terms of Service
                 </Link>
                 <span className="text-zinc-300">•</span>
-                <Link href="/privacy" className="hover:text-zinc-900">
+                <Link href="/legal/privacy" className="hover:text-zinc-900">
                   Privacy Policy
                 </Link>
               </div>
