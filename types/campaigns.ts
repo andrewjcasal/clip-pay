@@ -1,10 +1,8 @@
-export type SubmissionCreator = Array<{
-  profile: {
-    organization_name: string | null
-    referred_by: string | null
-  }
-  tiktok_access_token: string | null
-}>
+export type SubmissionCreator = {
+  full_name: string | null
+  email: string | null
+  organization_name: string | null
+}
 
 export type Submission = {
   id: string
@@ -49,7 +47,6 @@ export interface NewCampaign {
   guidelines: string
   video_outline: string
   referral_bonus_rate: string
-  brandId?: string
 }
 
 export interface FormErrors {

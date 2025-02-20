@@ -1,13 +1,13 @@
 import { CampaignWithSubmissions } from "@/types/campaigns"
 import { cn } from "@/lib/utils"
 
-export function CampaignCard({
+export const CampaignCard = ({
   campaign,
   onClick,
 }: {
   campaign: CampaignWithSubmissions
   onClick: () => void
-}) {
+}) => {
   return (
     <div
       className="flex items-center gap-4 p-4 hover:bg-zinc-50 rounded-lg group cursor-pointer"

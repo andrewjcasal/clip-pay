@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { Dispatch, SetStateAction, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -11,89 +11,111 @@ import { Label } from "@/components/ui/label"
 import { createCampaign } from "../actions"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { NewCampaign, FormErrors } from "@/types/campaigns"
+import {
+  NewCampaign,
+  FormErrors,
+  CampaignWithSubmissions,
+} from "@/types/campaigns"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface CreateCampaignModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
   brandId: string
+  setCampaigns: Dispatch<SetStateAction<CampaignWithSubmissions[]>>
 }
 
 export function CreateCampaignModal({
   open,
   onOpenChange,
-  onSuccess,
   brandId,
+  setCampaigns,
 }: CreateCampaignModalProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
-  const [formData, setFormData] = useState<NewCampaign>({
+  const [newCampaign, setNewCampaign] = useState<NewCampaign>({
     title: "",
     budget_pool: "",
     rpm: "",
+    referral_bonus_rate: "",
     guidelines: "",
     video_outline: "",
-    referral_bonus_rate: "0",
   })
   const [errors, setErrors] = useState<FormErrors>({})
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const router = useRouter()
 
   const validateForm = () => {
     const newErrors: FormErrors = {}
-    let isValid = true
 
-    if (!formData.title.trim()) {
+    if (!newCampaign.title.trim()) {
       newErrors.title = true
-      isValid = false
     }
-    if (!formData.budget_pool.trim() || isNaN(Number(formData.budget_pool))) {
+    if (!newCampaign.budget_pool || Number(newCampaign.budget_pool) <= 0) {
       newErrors.budget_pool = true
-      isValid = false
     }
-    if (!formData.rpm.trim() || isNaN(Number(formData.rpm))) {
+    if (!newCampaign.rpm || Number(newCampaign.rpm) <= 0) {
       newErrors.rpm = true
-      isValid = false
     }
-    if (!formData.guidelines.trim()) {
+    if (!newCampaign.guidelines.trim()) {
       newErrors.guidelines = true
-      isValid = false
     }
 
     setErrors(newErrors)
-    return isValid
+    return Object.keys(newErrors).length === 0
   }
 
   const handleCreateCampaign = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) {
+      return
+    }
 
     try {
       setIsLoading(true)
-      const result = await createCampaign({
-        ...formData,
+
+      const newCampaignData = await createCampaign({
+        ...newCampaign,
         brandId,
       })
 
-      if (result.error) {
-        throw new Error(result.error)
-      }
+      // Update local state with the new campaign
+      setCampaigns((prevCampaigns) => [
+        {
+          id: newCampaignData.campaign.id,
+          title: newCampaignData.campaign.title,
+          budget_pool: String(newCampaignData.campaign.budget_pool),
+          rpm: String(newCampaignData.campaign.rpm),
+          guidelines: newCampaignData.campaign.guidelines,
+          video_outline: newCampaignData.campaign.video_outline,
+          status: newCampaignData.campaign.status,
+          brand: {
+            name: "Loading...", // This will be updated on the next data fetch
+            payment_verified: false,
+          },
+          submission: null,
+          submissions: [],
+          activeSubmissionsCount: 0,
+        } as CampaignWithSubmissions,
+        ...prevCampaigns,
+      ])
 
-      // Reset form
-      setFormData({
+      onOpenChange(false)
+      setNewCampaign({
         title: "",
         budget_pool: "",
         rpm: "",
         guidelines: "",
         video_outline: "",
-        referral_bonus_rate: "0",
+        referral_bonus_rate: "0.10",
       })
-      setErrors({})
-
-      // Show success dialog
-      onOpenChange(false)
       setShowSuccessDialog(true)
-      onSuccess()
+
+      // Force a server refresh to ensure data consistency
+      router.refresh()
     } catch (error) {
-      console.error("Error creating campaign:", error)
+      console.error("Failed to create campaign:", error)
+      toast.error("Failed to create campaign")
     } finally {
       setIsLoading(false)
     }
@@ -101,7 +123,6 @@ export function CreateCampaignModal({
 
   return (
     <>
-      {/* Create Campaign Dialog */}
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="bg-white border-zinc-200 text-zinc-900 sm:max-w-2xl">
           <DialogHeader>
@@ -120,9 +141,9 @@ export function CreateCampaignModal({
                 </Label>
                 <Input
                   id="title"
-                  value={formData.title}
+                  value={newCampaign.title}
                   onChange={(e) => {
-                    setFormData({ ...formData, title: e.target.value })
+                    setNewCampaign({ ...newCampaign, title: e.target.value })
                     setErrors({ ...errors, title: false })
                   }}
                   className={cn(
@@ -148,11 +169,11 @@ export function CreateCampaignModal({
                   </span>
                   <Input
                     id="budget_pool"
-                    value={formData.budget_pool}
+                    value={newCampaign.budget_pool}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9]/g, "")
-                      setFormData({
-                        ...formData,
+                      setNewCampaign({
+                        ...newCampaign,
                         budget_pool: value || "",
                       })
                       setErrors({ ...errors, budget_pool: false })
@@ -186,28 +207,21 @@ export function CreateCampaignModal({
                   </span>
                   <Input
                     id="rpm"
-                    value={formData.rpm}
+                    value={newCampaign.rpm}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9.]/g, "")
-                      const parsed = parseFloat(value)
-                      if (!isNaN(parsed)) {
-                        setFormData({
-                          ...formData,
-                          rpm: parsed.toFixed(2),
-                        })
-                      } else {
-                        setFormData({
-                          ...formData,
-                          rpm: "",
+                      // Only update if it's empty or a valid decimal number
+                      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+                        setNewCampaign({
+                          ...newCampaign,
+                          rpm: value,
                         })
                       }
                       setErrors({ ...errors, rpm: false })
                     }}
                     className="pl-7 bg-white border-zinc-200 text-zinc-900 h-10 focus:ring-[#5865F2]/20 focus:border-[#5865F2]"
                     placeholder="0.00"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
                     inputMode="decimal"
                   />
                 </div>
@@ -228,29 +242,21 @@ export function CreateCampaignModal({
                   </span>
                   <Input
                     id="referral_bonus_rate"
-                    value={formData.referral_bonus_rate}
+                    value={newCampaign.referral_bonus_rate}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9.]/g, "")
-                      const parsed = parseFloat(value)
-                      if (!isNaN(parsed)) {
-                        const capped = Math.min(parsed, 1)
-                        setFormData({
-                          ...formData,
-                          referral_bonus_rate: capped.toFixed(2),
-                        })
-                      } else {
-                        setFormData({
-                          ...formData,
-                          referral_bonus_rate: "",
+                      // Only update if it's empty or a valid decimal number with max 2 decimal places
+                      // Also ensure the value doesn't exceed 1.00
+                      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+                        setNewCampaign({
+                          ...newCampaign,
+                          referral_bonus_rate: value,
                         })
                       }
                     }}
                     className="pl-7 h-11 border-[#CBD5E1] focus:border-[#5865F2] focus:shadow-[0_0_0_1px_rgba(88,101,242,0.2)] focus:ring-0 bg-white text-black"
                     placeholder="0.00"
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.01"
+                    type="text"
                     inputMode="decimal"
                   />
                 </div>
@@ -266,10 +272,10 @@ export function CreateCampaignModal({
               </Label>
               <Textarea
                 id="guidelines"
-                value={formData.guidelines}
+                value={newCampaign.guidelines}
                 onChange={(e) => {
-                  setFormData({
-                    ...formData,
+                  setNewCampaign({
+                    ...newCampaign,
                     guidelines: e.target.value,
                   })
                   setErrors({ ...errors, guidelines: false })
@@ -294,10 +300,10 @@ export function CreateCampaignModal({
               </Label>
               <Textarea
                 id="video_outline"
-                value={formData.video_outline}
+                value={newCampaign.video_outline}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setNewCampaign({
+                    ...newCampaign,
                     video_outline: e.target.value,
                   })
                 }
@@ -310,7 +316,7 @@ export function CreateCampaignModal({
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-800 dark:text-white text-white border-zinc-200 hover:bg-zinc-50 dark:border-zinc-200"
+                className="dark:bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50 dark:border-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-50"
               >
                 Cancel
               </Button>

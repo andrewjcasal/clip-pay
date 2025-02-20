@@ -58,10 +58,6 @@ export const getBrandCampaigns = async (): Promise<
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
-  console.log(
-    "campaigns",
-    campaigns?.map((c) => c.submissions?.[0]?.creator)
-  )
   if (error) {
     console.error("Brand campaigns error:", error)
     throw error
@@ -118,8 +114,6 @@ export const getBrandCampaigns = async (): Promise<
           }
         }
       }) => {
-        const creator = creators?.find((c) => c.id === submission.user_id)
-        console.log("submission", submission)
         return {
           id: submission.id,
           video_url: submission.video_url || "",

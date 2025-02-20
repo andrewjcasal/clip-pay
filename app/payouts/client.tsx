@@ -467,7 +467,7 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                 ) ? (
                   <Button
                     onClick={() => setSelectedSubmission(null)}
-                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] text-white dark:text-white"
+                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] dark:hover:bg-[#4752C4] text-white dark:text-white"
                   >
                     Acknowledge
                   </Button>
@@ -475,7 +475,7 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                   <Button
                     onClick={() => handleProcessPayment(selectedSubmission.id)}
                     disabled={processingPayment}
-                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                    className="bg-[#5865F2] dark:bg-[#5865F2] hover:bg-[#4752C4] dark:hover:bg-[#4752C4] text-white dark:text-white"
                   >
                     {processingPayment ? "Processing..." : "Process Payment"}
                   </Button>
