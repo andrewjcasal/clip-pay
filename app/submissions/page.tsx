@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { SubmissionsClient } from "./client"
 import type { Campaign } from "@/types/database"
+import { updateVideoViews } from "../dashboard/page"
+import { getCreatorCampaigns } from "../dashboard/creator-campaigns"
 
 export type SubmissionWithCampaign = {
   id: string
@@ -31,10 +33,18 @@ export default async function SubmissionsPage() {
     redirect("/signin")
   }
 
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("stripe_account_id, stripe_account_status, tiktok_access_token")
+    .eq("user_id", user.id)
+    .single()
+
+  updateVideoViews(await getCreatorCampaigns(), creator!)
+
   // Get user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_type")
+    .select("user_type, organization_name")
     .eq("user_id", user.id)
     .single()
 
@@ -73,6 +83,7 @@ export default async function SubmissionsPage() {
       <DashboardHeader
         userType={profile.user_type as "creator" | "brand"}
         email={user.email || ""}
+        organization_name={profile.organization_name}
       />
       <SubmissionsClient
         submissions={submissions || []}

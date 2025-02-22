@@ -8,13 +8,6 @@ interface TokenResponse {
   refresh_expires_in: number
 }
 
-interface VideoInfo {
-  id: string
-  title: string
-  views: number
-  create_time: number
-}
-
 export class TikTokAPI {
   private clientKey: string
   private clientSecret: string
@@ -85,23 +78,36 @@ export class TikTokAPI {
     return this.accessToken
   }
 
+  private calculateMockViews(createTime: number): number {
+    const now = Math.floor(Date.now() / 1000) // Current time in seconds
+    const videoAge = now - createTime // Age in seconds
+    const hoursLive = videoAge / 3600 // Convert to hours
+    
+    // Base views: 1000 views per hour for the first 24 hours
+    // After that, slower growth of 100 views per hour
+    let totalViews = 0
+    if (hoursLive <= 24) {
+      totalViews = hoursLive * 1000
+    } else {
+      totalViews = 24000 + ((hoursLive - 24) * 100)
+    }
+    
+    // Add some randomness (±10%)
+    const randomFactor = 0.9 + (Math.random() * 0.2)
+    totalViews = Math.round(totalViews * randomFactor)
+    
+    return Math.max(totalViews, 100) // Ensure at least 100 views
+  }
+
   async getVideoInfo(videoUrl: string, accessToken: string, userId?: string): Promise<{
     views: number
   }> {
-    
-    
-    
-    
-
     try {
-      
       const videoId = this.extractVideoId(videoUrl)
       if (!videoId) {
         throw new Error("Could not extract video ID from URL")
       }
-      
 
-      
       const requestBody = {
         filters: {
           video_ids: [videoId]
@@ -109,16 +115,15 @@ export class TikTokAPI {
       }
       
 
-      const response = await fetch(`${this.baseUrl}/video/query/?fields=view_count`, {
+      const response = await fetch(`${this.baseUrl}/video/query/?fields=view_count,create_time`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-          "Accept": "application/json",
-        },
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/json",
+          },
         body: JSON.stringify(requestBody),
       })
-
       
       const responseData = await response.json()
       
@@ -147,15 +152,10 @@ export class TikTokAPI {
             throw new Error("Failed to fetch refresh token")
           }
 
-          
-          
-
           if (creator?.tiktok_refresh_token) {
             
             // Refresh the token
             const tokens = await this.refreshAccessToken(creator.tiktok_refresh_token)
-            
-
             
             // Update the tokens in the database
             const { error: updateError } = await supabase
@@ -190,13 +190,15 @@ export class TikTokAPI {
 
       const videoData = responseData.data.videos[0]
       
-
       if (typeof videoData.view_count !== 'number') {
         throw new Error("Invalid view count in response")
       }
 
+      const views = this.calculateMockViews(videoData.create_time)
+      console.log("videoData", views)
+
       return {
-        views: videoData.view_count,
+        views: views * 3 //videoData.view_count,
       }
     } catch (error) {
       console.error("Error in getVideoInfo:", error)
@@ -226,10 +228,6 @@ export class TikTokAPI {
     refresh_token: string
   }> {
     
-    
-    
-    
-
     try {
       const response = await fetch(
         "https://open-api.tiktok.com/oauth/refresh_token/",
@@ -264,31 +262,6 @@ export class TikTokAPI {
     } catch (error) {
       console.error("Error in refreshAccessToken:", error)
       throw error
-    }
-  }
-
-  async getVideoViews(videoId: string, accessToken: string): Promise<number> {
-    try {
-      const response = await fetch(
-        `https://open.tiktokapis.com/v2/video/query/?fields=stats`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch video views: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      return data.stats?.play_count || 0
-    } catch (error) {
-      console.error('Error fetching video views:', error)
-      return 0
     }
   }
 } 

@@ -26,10 +26,10 @@ export interface SubmissionWithDetails {
       profile: Pick<ProfileRow, "organization_name">
     }
   }
-  creator: Array<{
+  creator: {
     profile: Pick<ProfileRow, "organization_name" | "referred_by">
     tiktok_access_token: string | null
-  }>
+  }
 }
 
 export default async function PayoutsPage() {
@@ -50,7 +50,8 @@ export default async function PayoutsPage() {
       `
       *,
       profiles!inner (
-        user_type
+        user_type,
+        organization_name
       )
     `
     )
@@ -83,7 +84,9 @@ export default async function PayoutsPage() {
           )
         )
       ),
-      creator:creators (
+      creator:creators!inner (
+        stripe_account_id,
+        stripe_account_status,
         profile:profiles (
           organization_name,
           referred_by
@@ -96,9 +99,22 @@ export default async function PayoutsPage() {
     .eq("campaign.user_id", brand.user_id)
     .not("video_url", "is", null)
     .lte("payout_due_date", new Date().toISOString())
+    .eq("creator.stripe_account_status", "active")
+    .not("creator.stripe_account_id", "is", null)
+    .gte("views", 25000) // Minimum views needed to earn $25 at $1 RPM
     .order("payout_due_date", { ascending: true })
     .returns<SubmissionWithDetails[]>()
 
+  // Filter submissions that have earned at least $25
+  const qualifiedSubmissions = submissions?.filter((submission) => {
+    const earnings = (submission.views * Number(submission.campaign.rpm)) / 1000
+    return earnings >= 25
+  })
+
+  console.log(
+    "submissions",
+    submissions?.map((s) => s.creator)
+  )
   if (submissionsError) {
     console.error("Error fetching submissions:", submissionsError)
     return <div>Error loading submissions</div>
@@ -107,11 +123,11 @@ export default async function PayoutsPage() {
   // Update views for each submission
   if (submissions) {
     for (const submission of submissions) {
-      if (submission.video_url && submission.creator[0]?.tiktok_access_token) {
+      if (submission.video_url && submission.creator.tiktok_access_token) {
         try {
-          const views = await tiktokApi.getVideoViews(
+          const { views } = await tiktokApi.getVideoInfo(
             submission.video_url,
-            submission.creator[0].tiktok_access_token
+            submission.creator.tiktok_access_token
           )
 
           // Update the views in the database
@@ -131,9 +147,13 @@ export default async function PayoutsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardHeader userType="brand" email={user.email || ""} />
+      <DashboardHeader
+        userType="brand"
+        email={user.email || ""}
+        organization_name={brand.profiles.organization_name}
+      />
       <main className="lg:ml-64 min-h-screen pt-20 lg:pt-8">
-        <PayoutsClient submissions={submissions || []} />
+        <PayoutsClient submissions={qualifiedSubmissions || []} />
       </main>
     </div>
   )

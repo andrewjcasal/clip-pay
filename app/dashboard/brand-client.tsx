@@ -23,12 +23,14 @@ interface DashboardClientProps {
   initialCampaigns: CampaignWithSubmissions[]
   brandId: string
   email: string
+  organization_name: string
 }
 
 export function DashboardClient({
   initialCampaigns,
   brandId,
   email,
+  organization_name,
 }: DashboardClientProps) {
   const [campaigns, setCampaigns] =
     useState<CampaignWithSubmissions[]>(initialCampaigns)
@@ -231,7 +233,11 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardHeader userType="brand" email={email} />
+      <DashboardHeader
+        userType="brand"
+        email={email}
+        organization_name={organization_name}
+      />
 
       {/* Metrics */}
       <main className="lg:ml-64 min-h-screen">

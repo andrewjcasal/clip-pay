@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server"
 
 type ProfileResponse = {
   user_type: string
+  organization_name: string
   creator: {
     stripe_account_id: string | null
     stripe_account_status: string | null
@@ -31,6 +32,7 @@ export default async function EarningsPage() {
     .select(
       `
       user_type,
+      organization_name,
       creator:creators (
         stripe_account_id,
         stripe_account_status
@@ -103,7 +105,11 @@ export default async function EarningsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardHeader userType="creator" email={user.email || ""} />
+      <DashboardHeader
+        userType="creator"
+        email={user.email || ""}
+        organization_name={profile.organization_name}
+      />
       <main className="lg:ml-64 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-8 pt-20 lg:pt-8">
           <div className="max-w-[800px] mx-auto">

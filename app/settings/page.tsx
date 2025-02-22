@@ -18,7 +18,7 @@ export default async function SettingsPage() {
   // Get user profile to check type
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, user_type, organization_name")
     .eq("user_id", user.id)
     .single()
 
@@ -55,6 +55,7 @@ export default async function SettingsPage() {
       <DashboardHeader
         userType={profile.user_type as "creator" | "brand"}
         email={user.email || ""}
+        organization_name={profile.organization_name}
       />
 
       <main className="lg:ml-64 min-h-screen">

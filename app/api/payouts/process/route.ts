@@ -181,7 +181,6 @@ export async function POST(request: Request) {
         brand_id: brand.id,
         submission_id: submissionId,
         amount: totalAmount,
-        creator_amount: paymentAmount,
         service_fee: serviceFee,
         referrer_amount: referrerPayment,
         referrer_id: submission.creator.profile.referred_by || null,

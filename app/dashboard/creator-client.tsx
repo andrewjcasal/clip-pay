@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { VideoPlayer } from "@/components/video-player"
 import { VideoUrlInput } from "@/components/video-url-input"
+import { StripeConnectBanner } from "./components/stripe-connect-banner"
 
 interface Campaign {
   id: string
@@ -60,6 +61,11 @@ interface NotificationMetadata {
 interface CreatorDashboardClientProps {
   transformedCampaigns: Campaign[]
   email: string
+  creator: {
+    stripe_account_id: string | null
+    stripe_account_status: string | null
+  } | null
+  organization_name: string
 }
 
 function CampaignCard({
@@ -149,6 +155,8 @@ function CampaignCard({
 export function CreatorDashboardClient({
   transformedCampaigns = [],
   email,
+  creator,
+  organization_name,
 }: CreatorDashboardClientProps) {
   const [campaigns, setCampaigns] = useState(transformedCampaigns)
   const [newCampaigns, setNewCampaigns] = useState<Campaign[]>([])
@@ -168,6 +176,7 @@ export function CreatorDashboardClient({
   const [videoModalOpen, setVideoModalOpen] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [totalEarnings, setTotalEarnings] = useState(0)
 
   const isJustSubmitted =
     selectedCampaign && selectedCampaign.id === submittedCampaignId
@@ -262,6 +271,24 @@ export function CreatorDashboardClient({
     }
     setIsEditing(false)
   }, [selectedCampaign])
+
+  // Calculate total potential earnings from approved videos
+  useEffect(() => {
+    const earnings = campaigns.reduce((total, campaign) => {
+      if (
+        campaign.submission?.status === "approved" &&
+        campaign.submission.video_url
+      ) {
+        const views = campaign.submission.views || 0
+        const rpm = parseFloat(campaign.rpm)
+        const videoEarnings = (views * rpm) / 1000
+        // Only count earnings if this individual video has earned $25 or more
+        return total + (videoEarnings >= 25 ? videoEarnings : 0)
+      }
+      return total
+    }, 0)
+    setTotalEarnings(earnings)
+  }, [campaigns])
 
   const handleShowNewCampaigns = () => {
     setCampaigns((prev) => [...newCampaigns, ...prev])
@@ -484,6 +511,7 @@ export function CreatorDashboardClient({
                   update your submission with a public video URL.
                 </p>
                 <VideoUrlInput
+                  videoViews={selectedCampaign.submission.views}
                   submissionId={selectedCampaign.submission.id}
                   currentUrl={selectedCampaign.submission.video_url}
                   onUpdate={(views) => {
@@ -656,10 +684,21 @@ export function CreatorDashboardClient({
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardHeader userType="creator" email={email} />
+      <DashboardHeader
+        userType="creator"
+        email={email}
+        organization_name={organization_name}
+      />
 
       <main className="lg:ml-64 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-8 pt-20 lg:pt-8">
+          {/* Show banner if creator has no Stripe account and has earnings over $25 */}
+          {(!creator?.stripe_account_id ||
+            creator?.stripe_account_status !== "active") &&
+            totalEarnings >= 25 && (
+              <StripeConnectBanner totalEarnings={totalEarnings} />
+            )}
+
           {/* Stats Overview */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="p-4 lg:p-6">

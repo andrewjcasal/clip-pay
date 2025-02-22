@@ -28,9 +28,14 @@ import { Logo } from "@/components/logo"
 interface DashboardHeaderProps {
   userType: "creator" | "brand"
   email: string
+  organization_name?: string
 }
 
-export function DashboardHeader({ userType, email }: DashboardHeaderProps) {
+export function DashboardHeader({
+  userType,
+  email,
+  organization_name,
+}: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClientComponentClient()
   const [showNotifications, setShowNotifications] = useState(false)
@@ -145,6 +150,11 @@ export function DashboardHeader({ userType, email }: DashboardHeaderProps) {
           {/* User Info & Settings */}
           <div className="space-y-4 p-4 border-t border-zinc-200">
             <div className="px-2">
+              {organization_name && (
+                <span className="text-sm font-medium text-zinc-900 max-w-[180px] truncate block">
+                  {organization_name}
+                </span>
+              )}
               <span className="text-sm text-zinc-500 max-w-[180px] truncate block">
                 {email}
               </span>

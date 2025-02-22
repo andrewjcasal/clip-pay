@@ -10,12 +10,14 @@ interface VideoUrlInputProps {
   submissionId: string
   currentUrl: string | null
   onUpdate?: (views: number) => void
+  videoViews?: number
 }
 
 export function VideoUrlInput({
   submissionId,
   currentUrl,
   onUpdate,
+  videoViews,
 }: VideoUrlInputProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [videoUrl, setVideoUrl] = useState("")
@@ -95,6 +97,8 @@ export function VideoUrlInput({
           </div>
         )}
       </div>
+      <span className="text-sm text-zinc-500">View Count: {videoViews}</span>
     </div>
   )
 }
+

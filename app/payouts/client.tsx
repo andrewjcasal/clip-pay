@@ -182,7 +182,7 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                 </h3>
                 <p className="text-sm text-zinc-600">
                   by{" "}
-                  {submission.creator?.[0]?.profile?.organization_name ||
+                  {submission.creator.profile.organization_name ||
                     "Unknown Creator"}
                 </p>
                 <div className="flex items-center justify-between mt-2">
@@ -214,8 +214,8 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                 </h1>
                 <p className="text-zinc-600 mt-2">
                   Process payment for{" "}
-                  {selectedSubmission.creator?.[0]?.profile
-                    ?.organization_name || "Unknown Creator"}
+                  {selectedSubmission.creator.profile.organization_name ||
+                    "Unknown Creator"}
                 </p>
               </div>
 
@@ -319,12 +319,12 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                 </div>
               </div>
 
-              {selectedSubmission.creator?.[0]?.profile?.referred_by && (
+              {selectedSubmission.creator.profile.referred_by && (
                 <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-lg">
                   <p className="text-sm text-zinc-600 mb-1">Referred by</p>
                   <p className="text-xl font-semibold text-zinc-900">
-                    {selectedSubmission.creator?.[0]?.profile
-                      ?.organization_name || "Unknown Creator"}
+                    {selectedSubmission.creator.profile.organization_name ||
+                      "Unknown Creator"}
                   </p>
                   <p className="text-sm text-zinc-500 mt-1">
                     Will receive $
@@ -359,7 +359,7 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                       ).toFixed(2)}
                     </p>
                   </div>
-                  {selectedSubmission.creator?.[0]?.profile?.referred_by && (
+                  {selectedSubmission.creator.profile.referred_by && (
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1">
                         <p className="text-sm text-zinc-600">

@@ -727,7 +727,7 @@ export async function updateCampaignViews(
     for (const submission of submissions || []) {
       if (submission.video_url && submission.creator[0]?.tiktok_access_token) {
         try {
-          const views = await tiktokApi.getVideoViews(
+          const views = await tiktokApi.getVideoInfo(
             submission.video_url,
             submission.creator[0].tiktok_access_token
           )

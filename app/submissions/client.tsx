@@ -203,7 +203,7 @@ export function SubmissionsClient({
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-[#475467]">
-                              Earned
+                              Potential Earnings
                             </span>
                             <span className="text-xs font-medium text-[#101828]">
                               $
@@ -375,6 +375,7 @@ export function SubmissionsClient({
                   <div className="space-y-4">
                     <div className="bg-[#5865F2]/10 border border-[#5865F2]/20 p-4 rounded-lg">
                       <VideoUrlInput
+                        videoViews={selectedSubmission.views}
                         submissionId={selectedSubmission.id}
                         currentUrl={selectedSubmission.video_url}
                         onUpdate={(views) => {

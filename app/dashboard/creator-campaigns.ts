@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { Campaign, Submission } from "./page"
 
-interface CreatorCampaign extends Campaign {
+export interface CreatorCampaign extends Campaign {
   submission: Submission | null
   remaining_budget?: number
 }
