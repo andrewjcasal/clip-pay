@@ -38,7 +38,9 @@ export interface CampaignWithSubmissions {
     submission: Submission | null
     submissions: Submission[]
     activeSubmissionsCount: number
-  }
+    remaining_budget?: number
+    has_insufficient_budget?: boolean
+}
 
 export interface NewCampaign {
   title: string

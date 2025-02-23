@@ -12,8 +12,8 @@ export const getCreatorCampaigns = async () => {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    throw new Error("User not authenticated")
+  if (!user?.id) {
+    return []
   }
 
   try {
@@ -104,12 +104,14 @@ export const getCreatorCampaigns = async () => {
             ) || 0
 
         const remainingBudget = Number(campaign.budget_pool) - totalSpent
+        const hasInsufficientBudget = remainingBudget < 10 // Mark as insufficient if less than $10
 
         const transformed = {
           id: campaign.id,
           title: campaign.title,
           budget_pool: String(campaign.budget_pool),
           remaining_budget: remainingBudget,
+          has_insufficient_budget: hasInsufficientBudget,
           rpm: String(campaign.rpm),
           guidelines: campaign.guidelines,
           status: campaign.status,

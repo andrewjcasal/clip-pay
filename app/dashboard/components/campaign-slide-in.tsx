@@ -40,6 +40,18 @@ export const CampaignSlideIn = ({
   setIsRefreshingViews,
   updateCampaignViews,
 }: CampaignSlideInProps) => {
+  // Calculate remaining budget
+  const calculateRemainingBudget = (campaign: CampaignWithSubmissions) => {
+    const totalSpent = campaign.submissions
+      .filter((submission) => submission.status === "fulfilled")
+      .reduce((sum, submission) => {
+        const paymentAmount = (submission.views * Number(campaign.rpm)) / 1000
+        return sum + paymentAmount
+      }, 0)
+    const remaining = Number(campaign.budget_pool) - totalSpent
+    return remaining
+  }
+
   // Add effect to select first submission when campaign changes
   useEffect(() => {
     if (selectedCampaign && selectedCampaign.submissions.length > 0) {
@@ -57,6 +69,20 @@ export const CampaignSlideIn = ({
       setSelectedSubmission(sortedSubmissions[0])
     } else {
       setSelectedSubmission(null)
+    }
+  }, [selectedCampaign])
+
+  // Update remaining budget when campaign changes
+  useEffect(() => {
+    if (selectedCampaign) {
+      const remaining = calculateRemainingBudget(selectedCampaign)
+      if (remaining !== selectedCampaign.remaining_budget) {
+        setSelectedCampaign({
+          ...selectedCampaign,
+          remaining_budget: remaining,
+          has_insufficient_budget: remaining < 10, // Mark as insufficient if less than $10
+        })
+      }
     }
   }, [selectedCampaign])
 
@@ -291,15 +317,19 @@ export const CampaignSlideIn = ({
                       <span
                         className={cn(
                           "text-sm px-2.5 py-0.5 rounded-full font-medium",
-                          selectedCampaign.status === "active"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-zinc-100 text-zinc-600"
+                          selectedCampaign.has_insufficient_budget
+                            ? "bg-red-50 text-red-700"
+                            : selectedCampaign.status === "active"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-zinc-100 text-zinc-600"
                         )}
                       >
-                        {(selectedCampaign.status || "Draft")
-                          .charAt(0)
-                          .toUpperCase() +
-                          (selectedCampaign.status || "Draft").slice(1)}
+                        {selectedCampaign.has_insufficient_budget
+                          ? "Insufficient Budget"
+                          : (selectedCampaign.status || "Draft")
+                              .charAt(0)
+                              .toUpperCase() +
+                            (selectedCampaign.status || "Draft").slice(1)}
                       </span>
                     </div>
                   </div>
@@ -316,8 +346,16 @@ export const CampaignSlideIn = ({
                           className="text-sm text-zinc-900"
                           data-state-hide="open"
                         >
-                          Budget Pool: ${selectedCampaign.budget_pool} · RPM: $
-                          {selectedCampaign.rpm}
+                          Budget Pool: ${selectedCampaign.budget_pool} ·
+                          Remaining Pool: $
+                          {selectedCampaign.remaining_budget?.toFixed(2)}
+                          {selectedCampaign.has_insufficient_budget && (
+                            <span className="text-red-700">
+                              {" "}
+                              · Insufficient
+                            </span>
+                          )}{" "}
+                          · RPM: ${selectedCampaign.rpm}
                         </span>
                       </div>
                     </AccordionTrigger>
