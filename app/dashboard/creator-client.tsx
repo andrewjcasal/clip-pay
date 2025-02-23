@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { VideoPlayer } from "@/components/video-player"
 import { VideoUrlInput } from "@/components/video-url-input"
-import { StripeConnectBanner } from "./components/stripe-connect-banner"
+import { StripeConnectBanner } from "@/components/stripe-connect-banner"
 
 interface Campaign {
   id: string

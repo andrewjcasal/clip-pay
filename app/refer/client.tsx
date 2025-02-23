@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Copy } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
+import { StripeConnectBanner } from "@/components/stripe-connect-banner"
 
 interface ReferredCreator {
   user_id: string
@@ -18,26 +21,44 @@ interface ReferredCreator {
 interface ReferralClientProps {
   referralCode: string
   referredCreators: ReferredCreator[]
+  hasStripeAccount: boolean
 }
 
 export function ReferralClient({
   referralCode,
   referredCreators,
+  hasStripeAccount,
 }: ReferralClientProps) {
-  const handleCopyCode = () => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
     navigator.clipboard.writeText(referralCode)
-    toast.success("Referral code copied to clipboard")
+    setCopied(true)
+    toast.success("Referral code copied to clipboard!")
+    setTimeout(() => setCopied(false), 2000)
   }
+
+  // Calculate total earnings from referrals
+  const totalReferralEarnings = referredCreators.reduce((total, creator) => {
+    return total + (creator.creators?.[0]?.total_earned || 0)
+  }, 0)
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Refer Creators</h1>
         <p className="text-zinc-600">
-          Share your referral code and earn a percentage of RPM when your
-          referred creators submit content
+          Share your referral code with other creators and earn a bonus on their
+          earnings
         </p>
       </div>
+
+      {!hasStripeAccount && (
+        <StripeConnectBanner
+          totalEarnings={totalReferralEarnings}
+          context="referral"
+        />
+      )}
 
       <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-6">
         <div>
@@ -49,7 +70,7 @@ export function ReferralClient({
               {referralCode}
             </code>
             <Button
-              onClick={handleCopyCode}
+              onClick={handleCopy}
               className="bg-black hover:bg-black/90 text-white"
             >
               Copy Code

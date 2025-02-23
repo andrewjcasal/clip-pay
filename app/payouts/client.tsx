@@ -115,8 +115,25 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
     return paymentAmount + calculateServiceFee(paymentAmount)
   }
 
-  const isPaymentTooLow = (paymentAmount: number) => {
-    return paymentAmount < 25 // Minimum payment threshold of $25.00
+  const isPaymentTooLow = (
+    paymentAmount: number,
+    totalCreatorEarnings: number
+  ) => {
+    // Individual submission must be at least $10 and total earnings must be at least $25
+    return paymentAmount < 10 || totalCreatorEarnings < 25
+  }
+
+  // Calculate total earnings for a creator
+  const calculateTotalCreatorEarnings = (creatorId: string) => {
+    return submissions
+      .filter((sub) => sub.creator.user_id === creatorId)
+      .reduce((total, sub) => {
+        const earnings = calculatePaymentAmount(
+          sub.views,
+          Number(sub.campaign.rpm)
+        )
+        return total + earnings
+      }, 0)
   }
 
   const handleViewsChange = (submissionId: string, value: string) => {
@@ -418,43 +435,68 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-zinc-200">
-                  {isPaymentTooLow(
-                    calculatePaymentAmount(
+                  {(() => {
+                    const submissionEarnings = calculatePaymentAmount(
                       selectedSubmission.views,
                       Number(selectedSubmission.campaign.rpm)
                     )
-                  ) ? (
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-amber-600">
-                        Creator Payment must be at least $25.00 to be processed
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-zinc-600">Campaign Budget</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <p className="text-sm text-zinc-900 font-medium">
-                            Remaining after payment:
-                          </p>
-                          <p className="text-sm font-semibold text-zinc-900">
-                            $
-                            {(
-                              Number(selectedSubmission.campaign.budget_pool) -
-                              calculatePaymentAmount(
-                                selectedSubmission.views,
-                                Number(selectedSubmission.campaign.rpm)
-                              )
-                            ).toFixed(2)}
+                    const totalCreatorEarnings = calculateTotalCreatorEarnings(
+                      selectedSubmission.creator.user_id
+                    )
+                    const isTooLow = isPaymentTooLow(
+                      submissionEarnings,
+                      totalCreatorEarnings
+                    )
+
+                    if (isTooLow) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-amber-600">
+                            {submissionEarnings < 10
+                              ? "This submission must earn at least $10.00 to be processed"
+                              : totalCreatorEarnings < 25
+                                ? "Total creator earnings must be at least $25.00 to process any payments"
+                                : "Payment amount is too low"}
                           </p>
                         </div>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          Only the creator payment amount is deducted from the
-                          budget pool
-                        </p>
+                      )
+                    }
+
+                    return (
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-zinc-600">
+                            Campaign Budget
+                          </p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <p className="text-sm text-zinc-900 font-medium">
+                              Remaining after payment:
+                            </p>
+                            <p className="text-sm font-semibold text-zinc-900">
+                              $
+                              {(
+                                Number(
+                                  selectedSubmission.campaign.budget_pool
+                                ) - submissionEarnings
+                              ).toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-1">
+                            Only the creator payment amount is deducted from the
+                            budget pool
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-zinc-600">
+                            Total Creator Earnings
+                          </p>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            ${totalCreatorEarnings.toFixed(2)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </div>
               </div>
 
@@ -463,6 +505,9 @@ export function PayoutsClient({ submissions }: PayoutsClientProps) {
                   calculatePaymentAmount(
                     selectedSubmission.views,
                     Number(selectedSubmission.campaign.rpm)
+                  ),
+                  calculateTotalCreatorEarnings(
+                    selectedSubmission.creator.user_id
                   )
                 ) ? (
                   <Button

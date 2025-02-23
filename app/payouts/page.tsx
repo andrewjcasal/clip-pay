@@ -27,6 +27,7 @@ export interface SubmissionWithDetails {
     }
   }
   creator: {
+    user_id: string
     profile: Pick<ProfileRow, "organization_name" | "referred_by">
     tiktok_access_token: string | null
   }
@@ -101,14 +102,40 @@ export default async function PayoutsPage() {
     .lte("payout_due_date", new Date().toISOString())
     .eq("creator.stripe_account_status", "active")
     .not("creator.stripe_account_id", "is", null)
-    .gte("views", 25000) // Minimum views needed to earn $25 at $1 RPM
+    .gte("views", 10000) // Minimum views needed to earn $10 at $1 RPM
     .order("payout_due_date", { ascending: true })
     .returns<SubmissionWithDetails[]>()
 
-  // Filter submissions that have earned at least $25
+  // Group submissions by creator and calculate total earnings
+  const submissionsByCreator = submissions?.reduce(
+    (acc, submission) => {
+      const creatorId = submission.creator.user_id
+      if (!acc[creatorId]) {
+        acc[creatorId] = []
+      }
+      acc[creatorId].push(submission)
+      return acc
+    },
+    {} as Record<string, SubmissionWithDetails[]>
+  )
+
+  // Filter submissions based on total earnings and individual thresholds
   const qualifiedSubmissions = submissions?.filter((submission) => {
-    const earnings = (submission.views * Number(submission.campaign.rpm)) / 1000
-    return earnings >= 25
+    const creatorId = submission.creator.user_id
+    const creatorSubmissions = submissionsByCreator?.[creatorId] || []
+
+    // Calculate total earnings for this creator's submissions
+    const totalEarnings = creatorSubmissions.reduce((total, sub) => {
+      const earnings = (sub.views * Number(sub.campaign.rpm)) / 1000
+      return total + earnings
+    }, 0)
+
+    // Calculate earnings for this specific submission
+    const submissionEarnings =
+      (submission.views * Number(submission.campaign.rpm)) / 1000
+
+    // Show submissions that earn at least $10 if total earnings >= $25
+    return totalEarnings >= 25 && submissionEarnings >= 10
   })
 
   console.log(

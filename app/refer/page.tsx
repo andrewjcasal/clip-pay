@@ -34,6 +34,15 @@ export default async function ReferPage() {
     redirect("/dashboard")
   }
 
+  // Get creator's Stripe account status
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("stripe_account_id, stripe_account_status")
+    .eq("user_id", user.id)
+    .single()
+
+  const hasStripeAccount = creator?.stripe_account_status === "active"
+
   // Get user's referral code
   let { data: referralData } = await supabase
     .from("referrals")
@@ -88,6 +97,7 @@ export default async function ReferPage() {
             <ReferralClient
               referralCode={referralData?.code || ""}
               referredCreators={referredCreators || []}
+              hasStripeAccount={hasStripeAccount}
             />
           </div>
         </div>
