@@ -35,7 +35,9 @@ export default async function SubmissionsPage() {
 
   const { data: creator } = await supabase
     .from("creators")
-    .select("stripe_account_id, stripe_account_status, tiktok_access_token")
+    .select(
+      "stripe_account_id, stripe_account_status, tiktok_access_token, user_id"
+    )
     .eq("user_id", user.id)
     .single()
 

@@ -131,7 +131,6 @@ export class TikTokAPI {
       if (!response.ok) {
         const error = responseData
         
-        
         // If token is invalid and we have the user ID, try to refresh it
         if (
           error.error?.code === "access_token_invalid" &&
@@ -227,40 +226,33 @@ export class TikTokAPI {
     access_token: string
     refresh_token: string
   }> {
-    
     try {
-      const response = await fetch(
-        "https://open-api.tiktok.com/oauth/refresh_token/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            client_key: this.clientKey,
-            client_secret: this.clientSecret,
-            grant_type: "refresh_token",
-            refresh_token: refreshToken,
-          }),
-        }
-      )
+      const response = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Cache-Control": "no-cache",
+        },
+        body: new URLSearchParams({
+          client_key: this.clientKey,
+          client_secret: this.clientSecret,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }).toString(),
+      })
 
-      
       const data = await response.json()
-      
 
       if (!response.ok) {
-        console.error("Token refresh failed:", data)
-        throw new Error(`Failed to refresh TikTok access token: ${JSON.stringify(data)}`)
+        throw new Error(`Failed to refresh token: ${JSON.stringify(data)}`)
       }
 
-      
       return {
-        access_token: data.data.access_token,
-        refresh_token: data.data.refresh_token,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
       }
     } catch (error) {
-      console.error("Error in refreshAccessToken:", error)
+      console.error("Error refreshing token:", error)
       throw error
     }
   }

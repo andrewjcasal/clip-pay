@@ -59,6 +59,7 @@ interface Creator {
   stripe_account_id: string | null
   stripe_account_status: string | null
   tiktok_access_token: string | null
+  user_id: string
 }
 
 export default async function DashboardPage() {
@@ -171,7 +172,11 @@ export const updateVideoViews = async (
       const videoInfoResults = await Promise.all(
         videoUrls.map((url) =>
           tiktokApi
-            .getVideoInfo(url, creator!.tiktok_access_token as string)
+            .getVideoInfo(
+              url,
+              creator!.tiktok_access_token as string,
+              creator!.user_id
+            )
             .then((info) => ({ url, info }))
         )
       )
